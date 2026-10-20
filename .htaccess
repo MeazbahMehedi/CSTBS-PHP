@@ -1,0 +1,8 @@
+Options -Indexes
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^(?:src|views|database|bin|tests|storage|vendor|\.github)(?:/|$) - [F,L]
+RewriteRule ^(?:config.*\.php|composer\.(?:json|lock)|\.git.*)$ - [F,L]
+RewriteRule ^public/assets/ - [L]
+RewriteRule ^ index.php [L,QSA]
+</IfModule>

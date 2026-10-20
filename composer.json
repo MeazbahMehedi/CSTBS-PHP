@@ -1,0 +1,18 @@
+{
+  "name": "meazbahmehedi/cstbs-php",
+  "description": "Campus stadium reservations and gate admission for PHP and MariaDB on XAMPP",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.2",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-mbstring": "*",
+    "ext-gd": "*",
+    "chillerlan/php-qrcode": "^5.0",
+    "dompdf/dompdf": "^3.1",
+    "phpmailer/phpmailer": "^6.10"
+  },
+  "config": {"platform": {"php": "8.2.0"}, "sort-packages": true},
+  "scripts": {"test": "php tests/integration.php"}
+}
