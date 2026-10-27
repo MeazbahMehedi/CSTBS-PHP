@@ -119,24 +119,10 @@ function cancel_booking(int $id, array $actor): void
         event_row((int) $booking['event_id'], true);
         $ticket = one('SELECT * FROM tickets WHERE booking_id=? FOR UPDATE', [$id]);
         if ($ticket && $ticket['status'] === 'checked_in') { throw new HttpError(409, 'A checked-in ticket cannot be cancelled.'); }
-        if (scalar("SELECT status FROM bookings WHERE id=?", [$id]) === 'cancelled') { return; }
+        if (scalar("SELECT status FROM bookings WHERE id=? FOR UPDATE", [$id]) === 'cancelled') { return; }
         query("UPDATE bookings SET status='cancelled' WHERE id=?", [$id]);
         query("UPDATE tickets SET status='cancelled' WHERE booking_id=?", [$id]);
         $owner = one('SELECT email FROM users WHERE id=?', [$booking['user_id']]);
         queue_mail($owner['email'], 'CSTBS reservation cancelled', 'Reservation ' . $id . ' has been cancelled.');
-    });
-}
-function check_in(string $token, int $gateId, array $actor): void
-{
-    transaction(function () use ($token, $gateId, $actor) {
-        $ticket = resolve_ticket($token);
-        if (!$ticket) { throw new HttpError(404, 'Invalid ticket.'); }
-        event_row((int) $ticket['event_id'], true);
-        $ticket = resolve_ticket($token);
-        $gate = one('SELECT * FROM gates WHERE id=?', [$gateId]);
-        $verdict = admission_verdict($ticket, $gate);
-        if ($verdict['status'] !== 'valid') { throw new HttpError(409, $verdict['title']); }
-        query("UPDATE tickets SET status='checked_in',checked_in_at=UTC_TIMESTAMP(),checked_in_by_id=?,checked_in_gate_id=? WHERE id=? AND status='active'",
-            [$actor['id'], $gateId, $ticket['id']]);
     });
 }
