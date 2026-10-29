@@ -1,0 +1,45 @@
+/* PHP/MariaDB interface additions. Original CSTBS design remains in styles.css. */
+.php-content { padding-bottom: 4rem; }
+.php-narrow { max-width: 760px; margin-inline: auto; }
+.php-description { line-height: 1.8; }
+.php-table-wrap { overflow-x: auto; }
+.php-table { width: 100%; border-collapse: collapse; text-align: left; }
+.php-table th { color: var(--muted); font-size: .875rem; font-weight: 700; }
+.php-table th, .php-table td { padding: 1rem .8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.php-table td small { display: block; margin-top: .35rem; color: var(--muted); }
+.php-table .form-control { min-width: 140px; }
+.php-inline { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; }
+.php-inline .form-control { width: auto; max-width: 220px; }
+.php-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end; }
+.php-form-grid .form-field { margin: 0; }
+.php-form-grid > button { align-self: end; }
+.php-details { display: grid; grid-template-columns: minmax(110px, 1fr) 2fr; gap: .75rem 1rem; line-height: 1.6; }
+.php-details dt { color: var(--muted); }
+.php-details dd { margin: 0; overflow-wrap: anywhere; }
+.php-check { display: flex; align-items: center; gap: .65rem; }
+.php-check input { width: 1.1rem; height: 1.1rem; }
+.php-inventory { display: flex; flex-wrap: wrap; gap: .55rem; padding-block: 1rem; }
+.php-inventory .seat-button { min-width: 48px; }
+.php-section-assignment { padding-block: 1rem; border-bottom: 1px solid var(--border); }
+.php-section-assignment label { min-width: 130px; font-weight: 700; }
+.php-qr { text-align: center; margin-block: 1.5rem; }
+.php-qr img { padding: 12px; border-radius: 12px; background: #fff; max-width: 100%; }
+.php-code { margin-block: 1.2rem; }
+.php-code summary { cursor: pointer; font-weight: 700; }
+.php-secret { display: block; padding: 1.5rem; margin-block: 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow-wrap: anywhere; font-size: 1rem; }
+.php-verdict { padding: 1.25rem; border-radius: 14px; margin-bottom: 1.5rem; }
+.php-verdict-valid { color: #075c43; background: #dcf8ec; }
+.php-verdict-waiting { color: #714600; background: #fff0cf; }
+.php-verdict-invalid { color: #9a202c; background: #ffeaed; }
+.digital-ticket-grid small, .digital-ticket-grid strong { display: block; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 680px) {
+    .php-details { grid-template-columns: 1fr; gap: .3rem; }
+    .php-details dd { margin-bottom: .7rem; }
+    .php-inline .form-control { max-width: 100%; }
+    .php-table th, .php-table td { padding-inline: .5rem; }
+}
+@media print {
+    .site-header, .site-footer, .ticket-actions, .php-code, .page-heading { display: none; }
+    .digital-ticket { box-shadow: none; border-color: #111; color: #111; }
+}
