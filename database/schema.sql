@@ -74,8 +74,6 @@ CREATE TABLE IF NOT EXISTS tickets (
  nonce CHAR(48) NOT NULL UNIQUE,
  status ENUM('active','checked_in','cancelled','unassigned') NOT NULL DEFAULT 'active',
  live_attendee INT GENERATED ALWAYS AS (CASE WHEN status IN ('active','checked_in') THEN attendee_user_id ELSE NULL END) PERSISTENT,
- UNIQUE(event_id,live_attendee),
- live_attendee INT GENERATED ALWAYS AS (CASE WHEN status IN ('active','checked_in') THEN attendee_user_id ELSE NULL END) PERSISTENT,
  checked_in_at DATETIME,
  checked_in_by_id INT,
  checked_in_gate_id INT,

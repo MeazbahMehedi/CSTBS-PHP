@@ -47,7 +47,14 @@ route('GET', '/tickets/(\d+)/pdf', function ($id) {
 });
 route('GET', '/entry/scan', function () {
     require_user(['staff', 'admin']);
-    render('scanner', ['title' => 'QR scanner', 'gates' => all('SELECT g.*,e.title AS event_title FROM gates g JOIN events e ON e.id=g.event_id ORDER BY e.starts_at,g.name'),
+    $code = $_GET['code'] ?? '';
+    if (!is_string($code)) { throw new HttpError(400, 'Invalid ticket code.'); }
+    if ($code !== '') {
+        $code = trim($code);
+        if (!resolve_ticket($code)) { throw new HttpError(400, 'Unknown or altered ticket code.'); }
+        redirect('/entry/verify/' . $code . '?gate_id=' . (int) ($_GET['gate_id'] ?? 0));
+    }
+    render('scan', ['title' => 'QR scanner', 'gates' => all('SELECT g.*,e.title AS event_title,e.checkin_enabled FROM gates g JOIN events e ON e.id=g.event_id ORDER BY e.starts_at,g.name'),
         'selected_gate' => (int) ($_GET['gate_id'] ?? 0)]);
 });
 route('GET', '/entry/verify/([A-Za-z0-9_.-]+)', function ($token) {

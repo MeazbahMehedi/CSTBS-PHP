@@ -32,6 +32,7 @@ function save_event(?int $id): int
         if ($id) {
             event_row($id, true);
             query('UPDATE events SET title=?,category=?,description=?,venue=?,starts_at=?,price=0 WHERE id=?', [...$values, $id]);
+            query('UPDATE events SET booking_enabled=? WHERE id=?', [(int) isset($_POST['booking_enabled']), $id]);
             return $id;
         }
         query('INSERT INTO events(title,category,description,venue,starts_at) VALUES(?,?,?,?,?)', $values);
