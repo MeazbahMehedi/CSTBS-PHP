@@ -32,7 +32,7 @@ try {
         if ($command === 'admin-setup') {
             if (scalar("SELECT COUNT(*) FROM users WHERE role='admin'") > 0) { throw new RuntimeException('An administrator already exists. Promote additional administrators through Users.'); }
             $name = trim($argv[3] ?? 'University Administrator');
-            query("INSERT INTO users(full_name,email,password_hash,role,password_ready) VALUES(?,?,?,'admin',0)", [$name, $email, password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT)]);
+            query("INSERT INTO users(full_name,email,password_hash,role,password_ready) VALUES(?,?,?,'admin',0)", [$name, $email, hash_password(bin2hex(random_bytes(32)))]);
             $user = one('SELECT * FROM users WHERE id=?', [db()->lastInsertId()]);
         }
         if (!$user) { throw new RuntimeException('Administrator not found.'); }

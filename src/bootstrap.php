@@ -163,6 +163,23 @@ function password_input(): string
     return $password;
 }
 
+function hash_password(string $password): string
+{
+    if (in_array('argon2id', password_algos(), true)) {
+        return password_hash($password, PASSWORD_ARGON2ID);
+    }
+    // Prehash keeps the full 128-byte input on PHP builds with bcrypt only.
+    return 'sha384:' . password_hash(base64_encode(hash('sha384', $password, true)), PASSWORD_BCRYPT);
+}
+
+function verify_password(string $password, string $hash): bool
+{
+    if (str_starts_with($hash, 'sha384:')) {
+        return password_verify(base64_encode(hash('sha384', $password, true)), substr($hash, 7));
+    }
+    return password_verify($password, $hash);
+}
+
 if (PHP_SAPI !== 'cli') {
     if (strlen((string) config('secret')) < 32) { throw new RuntimeException('Run the command-line installer before opening CSTBS.'); }
     if (config('production') && config('mail_transport') !== 'smtp') {

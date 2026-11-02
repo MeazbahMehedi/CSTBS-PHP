@@ -2,10 +2,12 @@
 declare(strict_types=1);
 
 // Every run owns a new database and removes only that exact database afterward.
-$databaseName = 'cstbs_test_' . bin2hex(random_bytes(5));
+$externalUrl = getenv('CSTBS_TEST_URL') ?: '';
+$databaseName = $externalUrl ? (getenv('CSTBS_TEST_DATABASE') ?: '') : 'cstbs_test_' . bin2hex(random_bytes(5));
+if (!preg_match('/^cstbs_test_[a-z0-9_]+$/', $databaseName)) { throw new RuntimeException('A dedicated cstbs_test_ database is required.'); }
 putenv('CSTBS_DB_NAME=' . $databaseName);
 putenv('CSTBS_BASE_PATH=');
-putenv('CSTBS_SECRET=' . bin2hex(random_bytes(32)));
+if (!$externalUrl) { putenv('CSTBS_SECRET=' . bin2hex(random_bytes(32))); }
 require dirname(__DIR__) . '/src/bootstrap.php';
 require dirname(__DIR__) . '/src/ticketing.php';
 function route(string $method, string $pattern, callable $handler): void {}
@@ -14,6 +16,7 @@ $_SESSION = [];
 $adminConnection = new PDO('mysql:host=' . config('db_host') . ';port=' . config('db_port'), config('db_user'), config('db_password'), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 $checks = 0;
 $server = null;
+$ownsDatabase = false;
 
 function check(bool $condition, string $label): void
 {
@@ -57,19 +60,24 @@ final class Browser
 
 try {
     $adminConnection->exec('CREATE DATABASE `' . $databaseName . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    $ownsDatabase = true;
     db()->exec(file_get_contents(dirname(__DIR__) . '/database/schema.sql'));
     db()->exec(file_get_contents(dirname(__DIR__) . '/database/schema.sql'));
     check((int) scalar('SELECT COUNT(*) FROM schema_versions') === 1, 'schema installation is idempotent');
-    $port = random_int(18000, 25000);
-    $log = dirname(__DIR__) . '/storage/test-server.log';
-    $server = proc_open([PHP_BINARY, '-d', 'extension=gd', '-S', '127.0.0.1:' . $port, 'router.php'], [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes, dirname(__DIR__));
-    if (!is_resource($server)) { throw new RuntimeException('Could not start test server.'); }
-    fclose($pipes[0]);
-    $base = 'http://127.0.0.1:' . $port;
-    for ($attempt = 0; $attempt < 50; $attempt++) {
-        $socket = @fsockopen('127.0.0.1', $port);
-        if ($socket) { fclose($socket); break; }
-        usleep(100000);
+    if ($externalUrl) {
+        $base = rtrim($externalUrl, '/');
+    } else {
+        $port = random_int(18000, 25000);
+        $log = dirname(__DIR__) . '/storage/test-server.log';
+        $server = proc_open([PHP_BINARY, '-d', 'extension=gd', '-S', '127.0.0.1:' . $port, 'router.php'], [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes, dirname(__DIR__));
+        if (!is_resource($server)) { throw new RuntimeException('Could not start test server.'); }
+        fclose($pipes[0]);
+        $base = 'http://127.0.0.1:' . $port;
+        for ($attempt = 0; $attempt < 50; $attempt++) {
+            $socket = @fsockopen('127.0.0.1', $port);
+            if ($socket) { fclose($socket); break; }
+            usleep(100000);
+        }
     }
     $public = new Browser($base);
     $alice = new Browser($base);
@@ -78,11 +86,15 @@ try {
     $staff = new Browser($base);
     check($public->request('/health')['status'] === 200, 'database health endpoint');
     check($public->request('/')['status'] === 200, 'public homepage');
-    check($public->request('/config.local.php')['status'] === 404, 'private configuration is inaccessible');
-    check($public->request('/database/schema.sql')['status'] === 404, 'schema source is inaccessible');
+    check(in_array($public->request('/config.local.php')['status'], [403, 404], true), 'private configuration is inaccessible');
+    check(in_array($public->request('/database/schema.sql')['status'], [403, 404], true), 'schema source is inaccessible');
     check($public->request('/admin')['status'] === 303, 'anonymous administration requires login');
     check($public->request('/register', [])['status'] === 400, 'missing CSRF rejected');
     $password = 'IntegrationPassword123!';
+    $longPassword = ' ' . str_repeat('Ab9!', 25) . ' ';
+    $longHash = hash_password($longPassword);
+    check(verify_password($longPassword, $longHash), 'full-length passwords preserve whitespace');
+    check(!verify_password($longPassword . 'x', $longHash), 'long password suffix remains significant');
     foreach ([[$alice, 'Alice Student', 'alice@campus.example', 'ALICE001'], [$bob, 'Bob Student', 'bob@campus.example', 'BOB00001']] as [$browser, $name, $email, $sid]) {
         $response = $browser->post('/register', ['full_name' => $name, 'email' => $email, 'student_id' => $sid, 'password' => $password, 'confirm_password' => $password, 'role' => 'admin'], '/register');
         check($response['status'] === 303, 'register ' . $sid);
@@ -90,7 +102,7 @@ try {
     $aliceUser = one('SELECT * FROM users WHERE student_id=?', ['ALICE001']);
     $bobUser = one('SELECT * FROM users WHERE student_id=?', ['BOB00001']);
     check($aliceUser['role'] === 'student', 'forged registration role cannot escalate');
-    check(password_verify($password, $aliceUser['password_hash']), 'password is hashed and verifiable');
+    check(verify_password($password, $aliceUser['password_hash']), 'password is hashed and verifiable');
     check($alice->request('/admin')['status'] === 403, 'student cannot access administration');
     check($public->request('/account')['status'] === 303, 'separate browser remains anonymous');
     query("INSERT INTO users(full_name,email,password_hash,role,password_ready) VALUES('Administrator','admin@campus.example',?,'admin',0)", [password_hash($password, PASSWORD_DEFAULT)]);
@@ -161,6 +173,43 @@ try {
     check($report['status'] === 200 && str_starts_with($report['body'], '%PDF'), 'private PDF report');
     check($bob->request('/admin/reports/export?format=csv')['status'] === 403, 'report authorization');
     check($admin->post('/admin/users/' . $adminId . '/role', ['role' => 'student'])['status'] === 409, 'self-demotion and last admin protection');
+    $admin->post('/admin/events/' . $eventId . '/sections/create', ['section' => 'East', 'rows' => 2, 'seat_count' => 3, 'gate_id' => $gateId]);
+    check((int) scalar("SELECT COUNT(*) FROM seats WHERE event_id=? AND section='East'", [$eventId]) === 6, 'create bounded seat section');
+    $admin->post('/admin/events/' . $eventId . '/sections/East/rename', ['new_name' => 'Premium']);
+    check((int) scalar("SELECT COUNT(*) FROM seats WHERE event_id=? AND section='Premium'", [$eventId]) === 6, 'rename seat section');
+    $admin->post('/admin/events/' . $eventId . '/sections/Premium/delete');
+    check((int) scalar("SELECT COUNT(*) FROM seats WHERE event_id=? AND section='Premium'", [$eventId]) === 0, 'delete unbooked section');
+    check($admin->post('/admin/events/' . $eventId . '/sections/Main/delete')['status'] === 409, 'historical section cannot be deleted');
+    $admin->post('/admin/seats/' . $seats[4]['id'] . '/toggle-block');
+    check((bool) scalar('SELECT is_blocked FROM seats WHERE id=?', [$seats[4]['id']]), 'block unreserved seat');
+    check($bob->post('/events/' . $eventId . '/booking/review', ['seat_ids' => (string) $seats[4]['id']])['status'] === 409, 'blocked seat rejected by server');
+    check($admin->post('/admin/seats/' . $seats[0]['id'] . '/toggle-block')['status'] === 409, 'occupied seat cannot be blocked');
+    check($admin->post('/admin/events/' . $eventId . '/sections/Main/gate', ['gate_id' => $wrongGate])['status'] === 409, 'admitted section cannot move gates');
+    $eventData['title'] = 'Disposable Event';
+    $admin->post('/admin/events/new', $eventData, '/admin/events/new');
+    $disposable = (int) scalar("SELECT id FROM events WHERE title='Disposable Event'");
+    $otherGate = (int) scalar('SELECT id FROM gates WHERE event_id=?', [$disposable]);
+    check($admin->post('/admin/events/' . $eventId . '/sections/Main/gate', ['gate_id' => $otherGate])['status'] === 400, 'cross-event gate assignment rejected');
+    check($admin->post('/admin/events/' . $disposable . '/delete')['status'] === 303, 'unbooked event can be deleted');
+    check((int) scalar('SELECT COUNT(*) FROM gates WHERE event_id=?', [$disposable]) === 0, 'event deletion removes owned gates');
+    try {
+        query('INSERT INTO bookings(user_id,seat_id) VALUES(?,?)', [$bobUser['id'], $seats[0]['id']]);
+        throw new RuntimeException('Duplicate active seat was accepted');
+    } catch (PDOException $error) { check($error->getCode() === '23000', 'database unique index rejects active seat collision'); }
+    $charlie = new Browser($base);
+    check($charlie->post('/register', ['full_name' => 'Charlie Student', 'email' => 'charlie@campus.example', 'student_id' => 'CHARLIE1', 'password' => $password, 'confirm_password' => $password], '/register')['status'] === 303, 'register third attendee for race test');
+    $seatId = (string) $seats[5]['id'];
+    check($bob->post('/events/' . $eventId . '/booking/review', ['seat_ids' => $seatId])['status'] === 200, 'first browser reviews available seat');
+    check($charlie->post('/events/' . $eventId . '/booking/review', ['seat_ids' => $seatId])['status'] === 200, 'second browser reviews same available seat');
+    check($bob->post('/events/' . $eventId . '/booking/confirm')['status'] === 303, 'first reservation wins reviewed seat');
+    check($charlie->post('/events/' . $eventId . '/booking/confirm')['status'] === 409, 'stale second confirmation cannot double-book');
+    $options = new \chillerlan\QRCode\QROptions(['outputType' => \chillerlan\QRCode\QRCode::OUTPUT_IMAGE_PNG, 'outputBase64' => false, 'scale' => 8]);
+    $qrPath = dirname(__DIR__) . '/storage/test-qr.png';
+    file_put_contents($qrPath, (new \chillerlan\QRCode\QRCode($options))->render($token));
+    $photo = $staff->post('/entry/scan-photo', ['gate_id' => $gateId, 'qr_photo' => new CURLFile($qrPath, 'image/png', 'ticket.png')], '/entry/scan');
+    check($photo['status'] === 303, 'uploaded QR photograph is decoded locally');
+    unlink($qrPath);
+    check($staff->request('/entry/scan?code=' . urlencode($token) . '&gate_id=' . $gateId)['status'] === 303, 'manual signed code routes to verification');
     $newAdmin = new Browser($base);
     $oldCsrf = $newAdmin->csrf('/admin/login');
     check($newAdmin->request('/admin/login', ['csrf_token' => $oldCsrf, 'email' => 'admin@campus.example', 'password' => $password])['status'] === 303, 'normal admin password login after activation');
@@ -170,5 +219,5 @@ try {
     echo "\n{$checks} integration checks passed.\n";
 } finally {
     if (is_resource($server)) { proc_terminate($server); proc_close($server); }
-    if (preg_match('/^cstbs_test_[a-f0-9]{10}$/', $databaseName)) { $adminConnection->exec('DROP DATABASE IF EXISTS `' . $databaseName . '`'); }
+    if ($ownsDatabase) { $adminConnection->exec('DROP DATABASE IF EXISTS `' . $databaseName . '`'); }
 }

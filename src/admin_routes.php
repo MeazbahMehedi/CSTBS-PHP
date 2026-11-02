@@ -172,7 +172,7 @@ route('POST', '/admin/users/(\d+)/role', function ($id) {
         if ((int) $id === (int) $actor['id'] || ($user['role'] === 'admin' && count($admins) <= 1)) { throw new HttpError(409, 'Keep your own role and at least one administrator.'); }
         if ($role === 'student' && !$user['student_id']) { throw new HttpError(400, 'A student needs a Student ID.'); }
         query('UPDATE users SET role=?,auth_version=auth_version+1 WHERE id=?', [$role, $id]);
-        if ($role === 'admin') { query('UPDATE users SET password_ready=0,password_hash=? WHERE id=?', [password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT), $id]); }
+        if ($role === 'admin') { query('UPDATE users SET password_ready=0,password_hash=? WHERE id=?', [hash_password(bin2hex(random_bytes(32))), $id]); }
     });
     redirect('/admin/users');
 });

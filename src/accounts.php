@@ -9,7 +9,7 @@ function issue_admin_key(int $userId, bool $reset = false): string
         if ($user['password_ready'] && !$reset) { throw new HttpError(409, 'Use the explicit admin-reset command for an activated account.'); }
         if ($reset) {
             query('UPDATE users SET password_ready=0,auth_version=auth_version+1,password_hash=? WHERE id=?',
-                [password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT), $userId]);
+                [hash_password(bin2hex(random_bytes(32))), $userId]);
         }
         query('UPDATE admin_keys SET used_at=UTC_TIMESTAMP() WHERE user_id=? AND used_at IS NULL', [$userId]);
         $key = bin2hex(random_bytes(24));
@@ -28,7 +28,7 @@ route('POST', '/register', function () {
     $sid = student_id(text_input('student_id', 6, 20));
     $password = password_input();
     if ($password !== ($_POST['confirm_password'] ?? null)) { throw new HttpError(400, 'Passwords must match.'); }
-    query("INSERT INTO users(full_name,email,student_id,password_hash,role) VALUES(?,?,?,?,'student')", [$name, $email, $sid, password_hash($password, PASSWORD_DEFAULT)]);
+    query("INSERT INTO users(full_name,email,student_id,password_hash,role) VALUES(?,?,?,?,'student')", [$name, $email, $sid, hash_password($password)]);
     sign_in(one('SELECT * FROM users WHERE id=?', [db()->lastInsertId()]));
     flash('Welcome to your student dashboard.', 'success');
     redirect('/dashboard');
@@ -40,10 +40,11 @@ foreach (['/login', '/admin/login'] as $path) {
     route('POST', $path, function () use ($path) {
         rate_limit('login', 5, 60);
         $email = mb_strtolower(text_input('email', 3, 254));
-        $password = text_input('password', 1, 128);
+        $password = $_POST['password'] ?? '';
+        if (!is_string($password) || strlen($password) > 128) { throw new HttpError(400, 'Invalid credentials.'); }
         $user = one('SELECT * FROM users WHERE email=?', [$email]);
         $hash = $user['password_hash'] ?? '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
-        $valid = password_verify($password, $hash);
+        $valid = verify_password($password, $hash);
         $adminLogin = $path === '/admin/login';
         if (!$user || !$valid || !$user['password_ready'] || (($user['role'] === 'admin') !== $adminLogin)) {
             http_response_code(400);
@@ -66,7 +67,7 @@ route('POST', '/admin/activate', function () {
         $invitation = $user ? one('SELECT * FROM admin_keys WHERE user_id=? AND token_hash=? AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() FOR UPDATE', [$user['id'], hash('sha256', $key)]) : null;
         if (!$user || $user['password_ready'] || !$invitation) { throw new HttpError(400, 'Key invalid, expired or already used.'); }
         query('UPDATE admin_keys SET used_at=UTC_TIMESTAMP() WHERE id=?', [$invitation['id']]);
-        query('UPDATE users SET password_hash=?,password_ready=1,auth_version=auth_version+1 WHERE id=?', [password_hash($password, PASSWORD_DEFAULT), $user['id']]);
+        query('UPDATE users SET password_hash=?,password_ready=1,auth_version=auth_version+1 WHERE id=?', [hash_password($password), $user['id']]);
         return one('SELECT * FROM users WHERE id=?', [$user['id']]);
     });
     sign_in($user);
