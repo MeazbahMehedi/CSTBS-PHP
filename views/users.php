@@ -5,14 +5,7 @@
 </section>
 <section class="container admin-section php-content">
     <?php require __DIR__ . '/partials/admin-nav.php'; ?>
-    <?php if (!empty($activation_key)): ?>
-        <div class="admin-panel">
-            <h2>Administrator activation key</h2>
-            <p>Share this single-use key privately with the intended administrator. It expires in 20 minutes.</p>
-            <code class="php-secret"><?= e($activation_key) ?></code>
-            <p>Activate through <a href="<?= e(url('/admin/activate')) ?>">administrator activation</a>.</p>
-        </div>
-    <?php endif ?>
+
     <div class="admin-panel">
         <div class="php-table-wrap">
             <table class="php-table">

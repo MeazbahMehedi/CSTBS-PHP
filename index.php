@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
 try {
     require __DIR__ . '/src/bootstrap.php';
     require __DIR__ . '/src/ticketing.php';
@@ -38,6 +41,11 @@ try {
     }
     http_response_code($code);
     if (function_exists('render') && is_file(__DIR__ . '/views/error.php')) {
-        render('error', ['title' => 'Request error', 'code' => $code, 'heading' => $code === 404 ? 'Page not found' : 'Please check your request', 'message' => $message]);
+        try {
+            render('error', ['title' => 'Request error', 'code' => $code, 'heading' => $code === 404 ? 'Page not found' : 'Please check your request', 'message' => $message]);
+        } catch (Throwable $renderError) {
+            error_log((string) $renderError);
+            echo '<h1>CSTBS</h1><p>' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
+        }
     } else { echo '<h1>CSTBS setup</h1><p>' . htmlspecialchars($message) . '</p>'; }
 }

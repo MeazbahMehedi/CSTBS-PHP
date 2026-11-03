@@ -178,7 +178,7 @@ route('POST', '/admin/users/(\d+)/role', function ($id) {
 });
 route('POST', '/admin/users/(\d+)/key', function ($id) {
     $key = issue_admin_key((int) $id);
-    render('users', ['title' => 'Activation key', 'activation_key' => $key, 'users' => all('SELECT * FROM users ORDER BY id')]);
+    render('admin-key', ['title' => 'Activation key', 'key' => $key, 'user' => one('SELECT * FROM users WHERE id=?', [$id])]);
 });
 route('GET', '/admin/bookings', function () { render('admin-bookings', ['title' => 'Bookings and tickets', 'bookings' => all(BOOKING_SELECT . ' ORDER BY b.id DESC')]); });
 route('POST', '/admin/bookings/(\d+)/cancel', function ($id) { cancel_booking((int) $id, require_user(['admin'])); redirect('/admin/bookings'); });
