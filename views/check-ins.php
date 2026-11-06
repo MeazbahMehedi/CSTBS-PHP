@@ -9,7 +9,9 @@
     </div>
 </section>
 <section class="container admin-section php-content">
-    <?php require __DIR__ . '/partials/admin-nav.php'; ?>
+    <?php if (current_user()['role'] === 'admin'): ?>
+        <?php require __DIR__ . '/partials/admin-nav.php'; ?>
+    <?php endif ?>
     <div class="admin-panel">
         <div class="php-table-wrap">
             <table class="php-table">

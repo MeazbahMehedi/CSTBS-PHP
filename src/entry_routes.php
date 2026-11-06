@@ -45,6 +45,16 @@ route('GET', '/tickets/(\d+)/pdf', function ($id) {
     }
     pdf_download($html, 'CSTBS-ticket-' . (int) $id . '.pdf');
 });
+route('GET', '/entry/check-ins', function () {
+    require_user(['staff', 'admin']);
+    $gateId = (int) ($_GET['gate_id'] ?? 0);
+    $where = " WHERE t.status='checked_in'";
+    $params = [];
+    if ($gateId) { $where .= ' AND t.checked_in_gate_id=?'; $params[] = $gateId; }
+    render('check-ins', ['title' => 'Gate attendance',
+        'tickets' => all(TICKET_SELECT . $where . ' ORDER BY t.checked_in_at DESC LIMIT 1000', $params),
+        'gates' => all('SELECT * FROM gates ORDER BY event_id,name')]);
+});
 route('GET', '/entry/scan', function () {
     require_user(['staff', 'admin']);
     $code = $_GET['code'] ?? '';

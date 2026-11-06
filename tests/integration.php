@@ -157,6 +157,8 @@ try {
     check(str_contains($staff->request('/entry/verify/' . $token . '?gate_id=' . $wrongGate)['body'], 'WRONG GATE'), 'wrong gate verdict');
     check($staff->post('/entry/check-in/' . $token, ['gate_id' => $wrongGate], '/entry/scan')['status'] === 409, 'wrong gate cannot admit');
     check($staff->post('/entry/check-in/' . $token, ['gate_id' => $gateId], '/entry/scan')['status'] === 303, 'first authorized check-in succeeds');
+    check($staff->request('/entry/check-ins?gate_id=' . $gateId)['status'] === 200, 'staff can view gate attendance');
+    check($alice->request('/entry/check-ins')['status'] === 403, 'attendance is restricted to staff and administrators');
     check($staff->post('/entry/check-in/' . $token, ['gate_id' => $gateId], '/entry/scan')['status'] === 409, 'duplicate check-in rejected');
     check($alice->post('/bookings/' . $ticket['booking_id'] . '/cancel')['status'] === 409, 'checked-in ticket cannot be cancelled');
     check($bob->post('/bookings/' . $ticket['booking_id'] . '/cancel')['status'] === 404, 'booking ownership enforced');

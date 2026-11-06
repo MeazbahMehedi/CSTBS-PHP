@@ -30,6 +30,7 @@
                         <?php endif ?>
                         <?php if (in_array($viewer['role'], ['admin', 'staff'], true)): ?>
                             <a href="<?= e(url('/entry/scan')) ?>">QR scanner</a>
+                            <a href="<?= e(url('/entry/check-ins')) ?>">Attendance</a>
                         <?php endif ?>
                         <a href="<?= e(url('/account')) ?>">My account</a>
                         <form class="logout-form" method="post" action="<?= e(url('/logout')) ?>">
