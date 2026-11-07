@@ -1,8 +1,6 @@
 <?php
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/vendor/autoload.php';
-
 final class HttpError extends RuntimeException
 {
     public function __construct(public int $status, string $message) { parent::__construct($message); }
@@ -19,6 +17,12 @@ foreach (['db_host', 'db_port', 'db_name', 'db_user', 'db_password', 'base_path'
 }
 $config['base_path'] = rtrim($config['base_path'], '/');
 date_default_timezone_set($config['timezone']);
+
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (!is_file($autoload)) {
+    throw new HttpError(503, 'Application dependencies are missing. Complete the Composer installation in the CSTBS-PHP folder, then reload this page.');
+}
+require $autoload;
 
 function config(string $key): mixed { return $GLOBALS['config'][$key] ?? null; }
 
@@ -181,7 +185,7 @@ function verify_password(string $password, string $hash): bool
 }
 
 if (PHP_SAPI !== 'cli') {
-    if (strlen((string) config('secret')) < 32) { throw new RuntimeException('Run the command-line installer before opening CSTBS.'); }
+    if (strlen((string) config('secret')) < 32) { throw new HttpError(503, 'Installation is incomplete. Run the CSTBS command-line installer to configure the private signing secret and database.'); }
     if (config('production') && config('mail_transport') !== 'smtp') {
         throw new RuntimeException('Configure SMTP before production startup.');
     }

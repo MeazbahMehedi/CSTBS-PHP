@@ -11,13 +11,13 @@ $command = $argv[1] ?? 'help';
 try {
     if ($command === 'install') {
         $path = dirname(__DIR__) . '/config.local.php';
-        if (!is_file($path)) {
-            $local = require dirname(__DIR__) . '/config.example.php';
+        $local = is_file($path) ? require $path : require dirname(__DIR__) . '/config.example.php';
+        if (!is_file($path) || strlen((string) config('secret')) < 32) {
             $local['secret'] = bin2hex(random_bytes(32));
             file_put_contents($path, "<?php\nreturn " . var_export($local, true) . ";\n", LOCK_EX);
             @chmod($path, 0600);
             $GLOBALS['config'] = array_replace($GLOBALS['config'], $local);
-            echo "Created private config.local.php. Review database settings before continuing.\n";
+            echo "Saved a private signing secret in config.local.php. Existing database settings were preserved.\n";
         }
         $connection = new PDO('mysql:host=' . config('db_host') . ';port=' . config('db_port') . ';charset=utf8mb4', config('db_user'), config('db_password'), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
         $name = config('db_name');
