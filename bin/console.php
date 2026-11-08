@@ -16,7 +16,7 @@ try {
             $local['secret'] = bin2hex(random_bytes(32));
             file_put_contents($path, "<?php\nreturn " . var_export($local, true) . ";\n", LOCK_EX);
             @chmod($path, 0600);
-            $GLOBALS['config'] = array_replace($GLOBALS['config'], $local);
+            $GLOBALS['config']['secret'] = $local['secret'];
             echo "Saved a private signing secret in config.local.php. Existing database settings were preserved.\n";
         }
         $connection = new PDO('mysql:host=' . config('db_host') . ';port=' . config('db_port') . ';charset=utf8mb4', config('db_user'), config('db_password'), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
