@@ -84,6 +84,25 @@ try {
     $bob = new Browser($base);
     $admin = new Browser($base);
     $staff = new Browser($base);
+    $setupRoot = dirname(__DIR__) . '/storage/setup-test-' . bin2hex(random_bytes(5));
+    mkdir($setupRoot . '/src', 0700, true);
+    mkdir($setupRoot . '/views', 0700, true);
+    $setupFiles = ['index.php', 'config.example.php', 'src/bootstrap.php', 'views/layout.php', 'views/error.php'];
+    foreach ($setupFiles as $file) { copy(dirname(__DIR__) . '/' . $file, $setupRoot . '/' . $file); }
+    try {
+        $script = '$_SERVER["REQUEST_URI"]="/CSTBS-PHP/"; $_SERVER["REQUEST_METHOD"]="GET"; require ' . var_export($setupRoot . '/index.php', true) . '; fwrite(STDERR,"STATUS=".http_response_code());';
+        $setupProcess = proc_open([PHP_BINARY, '-r', $script], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $setupPipes, $setupRoot, array_replace(getenv(), ['CSTBS_BASE_PATH' => '/CSTBS-PHP']));
+        fclose($setupPipes[0]);
+        $setupHtml = stream_get_contents($setupPipes[1]);
+        $setupStatus = stream_get_contents($setupPipes[2]);
+        fclose($setupPipes[1]); fclose($setupPipes[2]); proc_close($setupProcess);
+        check(str_contains($setupStatus, 'STATUS=503'), 'missing dependencies report incomplete installation');
+        check(str_contains($setupHtml, 'Composer installation'), 'missing dependency page explains setup action');
+        check(str_contains($setupHtml, '/CSTBS-PHP/public/assets/css/styles.css'), 'setup error preserves subfolder stylesheet URLs');
+    } finally {
+        foreach ($setupFiles as $file) { unlink($setupRoot . '/' . $file); }
+        rmdir($setupRoot . '/src'); rmdir($setupRoot . '/views'); rmdir($setupRoot);
+    }
     check($public->request('/health')['status'] === 200, 'database health endpoint');
     check($public->request('/')['status'] === 200, 'public homepage');
     check(in_array($public->request('/config.local.php')['status'], [403, 404], true), 'private configuration is inaccessible');
