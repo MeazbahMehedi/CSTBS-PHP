@@ -86,6 +86,9 @@ route('POST', '/entry/check-in/([A-Za-z0-9_.-]+)', function ($token) {
 route('POST', '/entry/scan-photo', function () {
     require_user(['staff', 'admin']);
     rate_limit('scan-photo', 20, 60);
+    if (!extension_loaded('gd')) {
+        throw new HttpError(503, 'QR-photo scanning requires PHP image support. Enable the GD extension in XAMPP PHP configuration and restart Apache.');
+    }
     $image = $_FILES['qr_photo'] ?? null;
     if (!$image || $image['error'] !== UPLOAD_ERR_OK || $image['size'] > 3 * 1024 * 1024 || !is_uploaded_file($image['tmp_name'])) {
         throw new HttpError(400, 'Upload a QR photograph smaller than 3 MB.');
@@ -95,7 +98,10 @@ route('POST', '/entry/scan-photo', function () {
         throw new HttpError(400, 'Use a JPEG, PNG, or WebP image of at most 12 megapixels.');
     }
     try { $result = (new \chillerlan\QRCode\QRCode())->readFromFile($image['tmp_name']); $token = (string) $result; }
-    catch (Throwable) { throw new HttpError(400, 'Could not read this QR photograph. Try a sharper image.'); }
+    catch (Throwable $error) {
+        error_log('CSTBS QR image decoding failed (' . get_class($error) . ').');
+        throw new HttpError(400, 'Could not read this QR photograph. Include the complete QR square and its white border, and use a clear PNG, JPEG, or WebP image.');
+    }
     if (!resolve_ticket($token)) { throw new HttpError(400, 'The image does not contain an official CSTBS ticket.'); }
     redirect('/entry/verify/' . $token . '?gate_id=' . (int) ($_POST['gate_id'] ?? 0));
 });
