@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 route('GET', '/', function () {
+    if ($user = current_user()) { redirect(role_home($user)); }
     render('home', ['title' => 'Home', 'events' => all('SELECT * FROM events WHERE starts_at>? ORDER BY starts_at LIMIT 3', [date('Y-m-d H:i:s')])]);
 });
 route('GET', '/events', function () { render('events', ['title' => 'Events', 'events' => all('SELECT * FROM events ORDER BY starts_at')]); });
@@ -59,7 +60,7 @@ const BOOKING_SELECT = "SELECT b.*,e.id AS event_id,e.title AS event_title,e.sta
     t.attendee_name,t.attendee_student_id,u.full_name AS owner_name FROM bookings b JOIN seats s ON s.id=b.seat_id
     JOIN events e ON e.id=s.event_id JOIN users u ON u.id=b.user_id LEFT JOIN tickets t ON t.booking_id=b.id ";
 route('GET', '/bookings', function () {
-    $user = require_user();
+    $user = require_user(['student']);
     render('bookings', ['title' => 'My bookings', 'bookings' => all(BOOKING_SELECT . ' WHERE b.user_id=? ORDER BY b.id DESC', [$user['id']])]);
 });
 route('POST', '/bookings/(\d+)/cancel', function ($id) {

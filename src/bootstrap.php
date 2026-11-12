@@ -84,9 +84,18 @@ function current_user(): ?array
 function require_user(array $roles = []): array
 {
     $user = current_user();
-    if (!$user) { redirect('/login'); }
+    if (!$user) { redirect($roles === ['admin'] ? '/admin/login' : '/login'); }
     if ($roles && !in_array($user['role'], $roles, true)) { throw new HttpError(403, 'Access restricted.'); }
     return $user;
+}
+
+function role_home(array $user): string
+{
+    return match ($user['role']) {
+        'admin' => '/admin',
+        'staff' => '/entry/scan',
+        default => '/dashboard',
+    };
 }
 
 function sign_in(array $user): void

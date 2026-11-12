@@ -131,6 +131,10 @@ try {
     check($response['status'] === 303, 'one-time administrator activation');
     check($public->post('/admin/activate', ['email' => 'admin@campus.example', 'admin_key' => $key, 'password' => $password, 'confirm_password' => $password], '/admin/activate')['status'] === 400, 'activation key replay rejected');
     check($admin->request('/admin')['status'] === 200, 'activated administrator dashboard');
+    check($admin->request('/dashboard')['status'] === 403, 'administrator cannot open student dashboard');
+    check($admin->request('/bookings')['status'] === 403, 'administrator cannot open student booking panel');
+    check($alice->request('/admin/login')['status'] === 303, 'signed-in student returns to own panel instead of admin login');
+    check($alice->request('/entry/scan')['status'] === 403, 'student cannot open scanner panel');
     $csrf = $admin->csrf('/admin/events/new');
     check($admin->request('/admin/events/new', ['csrf_token' => $csrf . 'tampered'])['status'] === 400, 'tampered CSRF rejected');
     $eventData = ['title' => 'Integration Cup', 'category' => 'Sports', 'description' => 'A test match at the university stadium.', 'venue' => 'Campus Stadium', 'starts_at' => date('Y-m-d\TH:i', time() + 86400 * 5), 'price' => '-999'];

@@ -19,8 +19,12 @@ function issue_admin_key(int $userId, bool $reset = false): string
     });
 }
 
-route('GET', '/register', function () { render('auth', ['title' => 'Student registration', 'mode' => 'register']); });
+route('GET', '/register', function () {
+    if ($user = current_user()) { redirect(role_home($user)); }
+    render('auth', ['title' => 'Student registration', 'mode' => 'register']);
+});
 route('POST', '/register', function () {
+    if (current_user()) { throw new HttpError(403, 'Sign out before creating another account.'); }
     rate_limit('register', 5, 60);
     $name = text_input('full_name', 2, 120);
     $email = mb_strtolower(text_input('email', 3, 254));
@@ -34,7 +38,10 @@ route('POST', '/register', function () {
     redirect('/dashboard');
 });
 foreach (['/login' => 'login', '/admin/login' => 'admin-login', '/admin/activate' => 'activate'] as $path => $mode) {
-    route('GET', $path, function () use ($mode) { render('auth', ['title' => 'Sign in', 'mode' => $mode]); });
+    route('GET', $path, function () use ($mode) {
+        if ($user = current_user()) { redirect(role_home($user)); }
+        render('auth', ['title' => 'Sign in', 'mode' => $mode]);
+    });
 }
 foreach (['/login', '/admin/login'] as $path) {
     route('POST', $path, function () use ($path) {
@@ -87,8 +94,7 @@ route('POST', '/account/student-id', function () {
     redirect('/account');
 });
 route('GET', '/dashboard', function () {
-    $user = require_user();
-    if ($user['role'] !== 'student') { redirect($user['role'] === 'admin' ? '/admin' : '/entry/scan'); }
+    $user = require_user(['student']);
     render('dashboard', ['title' => 'Student dashboard', 'user' => $user,
         'tickets' => all(TICKET_SELECT . " WHERE t.attendee_user_id=? AND t.status IN ('active','checked_in') ORDER BY t.id DESC", [$user['id']]),
         'events' => all('SELECT * FROM events WHERE starts_at>? ORDER BY starts_at LIMIT 3', [date('Y-m-d H:i:s')])]);
