@@ -131,9 +131,9 @@ function transaction(callable $operation): mixed
     try { $result = $operation(); db()->commit(); return $result; }
     catch (Throwable $error) { if (db()->inTransaction()) { db()->rollBack(); } throw $error; }
 }
-function event_row(int $id, bool $lock = false): array
+function event_row(int $id, bool $lock = false, bool $includeDeleted = false): array
 {
-    $event = one('SELECT * FROM events WHERE id=?' . ($lock ? ' FOR UPDATE' : ''), [$id]);
+    $event = one('SELECT * FROM events WHERE id=?' . ($includeDeleted ? '' : ' AND deleted_at IS NULL') . ($lock ? ' FOR UPDATE' : ''), [$id]);
     if (!$event) { throw new HttpError(404, 'Event not found.'); }
     return $event;
 }

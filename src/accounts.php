@@ -96,6 +96,6 @@ route('POST', '/account/student-id', function () {
 route('GET', '/dashboard', function () {
     $user = require_user(['student']);
     render('dashboard', ['title' => 'Student dashboard', 'user' => $user,
-        'tickets' => all(TICKET_SELECT . " WHERE t.attendee_user_id=? AND t.status IN ('active','checked_in') ORDER BY t.id DESC", [$user['id']]),
-        'events' => all('SELECT * FROM events WHERE starts_at>? ORDER BY starts_at LIMIT 3', [date('Y-m-d H:i:s')])]);
+        'tickets' => all(TICKET_SELECT . " WHERE t.attendee_user_id=? AND e.deleted_at IS NULL AND t.status IN ('active','checked_in') ORDER BY e.starts_at,t.id DESC", [$user['id']]),
+        'events' => all('SELECT * FROM events WHERE deleted_at IS NULL AND starts_at>? ORDER BY starts_at LIMIT 3', [date('Y-m-d H:i:s')])]);
 });

@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
 
-function admin_events(): array
+function admin_events(bool $deleted = false): array
 {
     return all("SELECT e.*,
         (SELECT COUNT(*) FROM bookings b JOIN seats s ON s.id=b.seat_id WHERE s.event_id=e.id AND b.status='reserved') AS reserved,
+        (SELECT COUNT(*) FROM bookings b JOIN seats s ON s.id=b.seat_id LEFT JOIN tickets t ON t.booking_id=b.id WHERE s.event_id=e.id AND b.status='reserved' AND (t.id IS NULL OR t.status!='checked_in')) AS cancel_count,
         (SELECT COUNT(*) FROM seats s WHERE s.event_id=e.id AND s.is_blocked=0 AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.seat_id=s.id AND b.status='reserved')) AS available,
         (SELECT COUNT(*) FROM tickets t WHERE t.event_id=e.id AND t.status='checked_in') AS inside,
         (SELECT COUNT(*) FROM gates g WHERE g.event_id=e.id AND g.is_open=1) AS gates_open,
-        (SELECT COUNT(*) FROM gates g WHERE g.event_id=e.id) AS gates_total FROM events e ORDER BY e.starts_at");
+        (SELECT COUNT(*) FROM gates g WHERE g.event_id=e.id) AS gates_total FROM events e WHERE e.deleted_at " . ($deleted ? 'IS NOT NULL' : 'IS NULL') . ' ORDER BY e.starts_at');
 }
 function add_section(int $eventId, int $gateId, string $name, int $rows, int $columns): void
 {
@@ -46,26 +47,35 @@ if (!str_starts_with($GLOBALS['request_path'], '/admin')) { return; }
 require_user(['admin']);
 route('GET', '/admin', function () {
     render('admin', ['title' => 'Stadium operations', 'events' => admin_events(), 'metrics' => [
-        'students' => scalar("SELECT COUNT(*) FROM users WHERE role='student'"), 'events' => scalar('SELECT COUNT(*) FROM events'),
-        'active_tickets' => scalar("SELECT COUNT(*) FROM tickets WHERE status IN ('active','checked_in')"),
+        'students' => scalar("SELECT COUNT(*) FROM users WHERE role='student'"), 'events' => scalar('SELECT COUNT(*) FROM events WHERE deleted_at IS NULL'),
+        'active_tickets' => scalar("SELECT COUNT(*) FROM tickets t JOIN events e ON e.id=t.event_id WHERE e.deleted_at IS NULL AND t.status IN ('active','checked_in')"),
         'inside' => scalar("SELECT COUNT(*) FROM tickets WHERE status='checked_in'")]]);
 });
-route('GET', '/admin/events', function () { render('admin-events', ['title' => 'Manage events', 'events' => admin_events()]); });
+route('GET', '/admin/events', function () {
+    $deleted = ($_GET['status'] ?? '') === 'deleted';
+    render('admin-events', ['title' => 'Manage events', 'events' => admin_events($deleted), 'showDeleted' => $deleted]);
+});
 route('GET', '/admin/events/new', function () { render('admin-event', ['title' => 'Create event', 'event' => null]); });
 route('POST', '/admin/events/new', function () { $id = save_event(null); flash('Event created with 60 seats.', 'success'); redirect('/events/' . $id); });
 route('GET', '/admin/events/(\d+)/edit', function ($id) { render('admin-event', ['title' => 'Edit event', 'event' => event_row((int) $id)]); });
 route('POST', '/admin/events/(\d+)/edit', function ($id) { save_event((int) $id); flash('Event updated.', 'success'); redirect('/admin/events'); });
 route('POST', '/admin/events/(\d+)/delete', function ($id) {
     transaction(function () use ($id) {
-        event_row((int) $id, true);
-        if (scalar('SELECT b.id FROM bookings b JOIN seats s ON s.id=b.seat_id WHERE s.event_id=? LIMIT 1', [$id])) {
-            throw new HttpError(409, 'This event has booking history and cannot be deleted.');
+        $event = event_row((int) $id, true, true);
+        if ($event['deleted_at']) { return; }
+        $cancelled = all("SELECT b.id,u.email FROM bookings b JOIN seats s ON s.id=b.seat_id
+            JOIN users u ON u.id=b.user_id LEFT JOIN tickets t ON t.booking_id=b.id
+            WHERE s.event_id=? AND b.status='reserved' AND (t.id IS NULL OR t.status!='checked_in')", [$id]);
+        query("UPDATE bookings b JOIN seats s ON s.id=b.seat_id LEFT JOIN tickets t ON t.booking_id=b.id
+            SET b.status='cancelled' WHERE s.event_id=? AND b.status='reserved' AND (t.id IS NULL OR t.status!='checked_in')", [$id]);
+        query("UPDATE tickets SET status='cancelled' WHERE event_id=? AND status IN ('active','unassigned')", [$id]);
+        query('UPDATE gates SET is_open=0 WHERE event_id=?', [$id]);
+        query('UPDATE events SET deleted_at=UTC_TIMESTAMP(),booking_enabled=0,checkin_enabled=0 WHERE id=?', [$id]);
+        foreach ($cancelled as $booking) {
+            queue_mail($booking['email'], 'CSTBS event removed', $event['title'] . ' has been removed. Reservation ' . $booking['id'] . ' is cancelled.');
         }
-        query('DELETE FROM seats WHERE event_id=?', [$id]);
-        query('DELETE FROM gates WHERE event_id=?', [$id]);
-        query('DELETE FROM events WHERE id=?', [$id]);
     });
-    flash('Event deleted successfully.', 'success'); redirect('/admin/events');
+    flash('Event deleted. Unused passes are cancelled and attendance history is retained.', 'success'); redirect('/admin/events');
 });
 route('GET', '/admin/events/(\d+)/seats', function ($id) {
     render('admin-seats', ['title' => 'Manage seats', 'event' => event_row((int) $id), 'gates' => all('SELECT * FROM gates WHERE event_id=? ORDER BY name', [$id]),

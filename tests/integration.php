@@ -64,6 +64,12 @@ try {
     db()->exec(file_get_contents(dirname(__DIR__) . '/database/schema.sql'));
     db()->exec(file_get_contents(dirname(__DIR__) . '/database/schema.sql'));
     check((int) scalar('SELECT COUNT(*) FROM schema_versions') === 1, 'schema installation is idempotent');
+    query('ALTER TABLE events DROP COLUMN deleted_at');
+    require dirname(__DIR__) . '/src/migrations.php';
+    upgrade_database();
+    upgrade_database();
+    check((int) scalar("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='events' AND COLUMN_NAME='deleted_at'") === 1, 'existing database gains event deletion field safely');
+    check((int) scalar('SELECT COUNT(*) FROM schema_versions') === 2, 'event migration is idempotent');
     if ($externalUrl) {
         $base = rtrim($externalUrl, '/');
     } else {
@@ -188,7 +194,7 @@ try {
     $bobTicket = one('SELECT * FROM tickets WHERE attendee_user_id=?', [$bobUser['id']]);
     check($alice->post('/bookings/' . $bobTicket['booking_id'] . '/cancel')['status'] === 303, 'booker can cancel own classmate reservation');
     check(one('SELECT * FROM tickets WHERE id=?', [$bobTicket['id']])['status'] === 'cancelled', 'cancellation invalidates signed pass');
-    check($admin->post('/admin/events/' . $eventId . '/delete')['status'] === 409, 'booking history blocks event deletion');
+    check($alice->post('/admin/events/' . $eventId . '/delete')['status'] === 403, 'students cannot delete events');
     foreach (['/admin/events', '/admin/events/' . $eventId . '/seats', '/admin/events/' . $eventId . '/gates', '/admin/users', '/admin/bookings', '/admin/reports', '/admin/check-ins'] as $path) {
         check($admin->request($path)['status'] === 200, 'administrator screen ' . $path);
     }
@@ -216,7 +222,8 @@ try {
     $otherGate = (int) scalar('SELECT id FROM gates WHERE event_id=?', [$disposable]);
     check($admin->post('/admin/events/' . $eventId . '/sections/Main/gate', ['gate_id' => $otherGate])['status'] === 400, 'cross-event gate assignment rejected');
     check($admin->post('/admin/events/' . $disposable . '/delete')['status'] === 303, 'unbooked event can be deleted');
-    check((int) scalar('SELECT COUNT(*) FROM gates WHERE event_id=?', [$disposable]) === 0, 'event deletion removes owned gates');
+    check((int) scalar('SELECT COUNT(*) FROM gates WHERE event_id=?', [$disposable]) === 1, 'deleted event retains inventory for history');
+    check((bool) scalar('SELECT deleted_at FROM events WHERE id=?', [$disposable]), 'deleted event is marked and hidden');
     try {
         query('INSERT INTO bookings(user_id,seat_id) VALUES(?,?)', [$bobUser['id'], $seats[0]['id']]);
         throw new RuntimeException('Duplicate active seat was accepted');
@@ -235,6 +242,21 @@ try {
     check($photo['status'] === 303, 'uploaded QR photograph is decoded locally');
     unlink($qrPath);
     check($staff->request('/entry/scan?code=' . urlencode($token) . '&gate_id=' . $gateId)['status'] === 303, 'manual signed code routes to verification');
+    $ticketCount = (int) scalar('SELECT COUNT(*) FROM tickets');
+    $bookingCount = (int) scalar('SELECT COUNT(*) FROM bookings');
+    check($admin->post('/admin/events/' . $eventId . '/delete')['status'] === 303, 'administrator can delete a booked event');
+    check((int) scalar('SELECT COUNT(*) FROM tickets') === $ticketCount, 'deletion retains ticket history');
+    check((int) scalar('SELECT COUNT(*) FROM bookings') === $bookingCount, 'deletion retains booking history');
+    check(one('SELECT * FROM tickets WHERE id=?', [$ticket['id']])['status'] === 'checked_in', 'deletion retains recorded admission');
+    check((int) scalar("SELECT COUNT(*) FROM tickets WHERE event_id=? AND status IN ('active','unassigned')", [$eventId]) === 0, 'event deletion invalidates unused passes');
+    check((int) scalar('SELECT COUNT(*) FROM gates WHERE event_id=? AND is_open=1', [$eventId]) === 0, 'deleted event gates close');
+    check($public->request('/events/' . $eventId)['status'] === 404, 'deleted event details are hidden');
+    check($public->request('/api/events/' . $eventId . '/seats')['status'] === 404, 'deleted event availability is hidden');
+    check(!str_contains($public->request('/events')['body'], 'Integration Cup'), 'deleted event removed from catalog');
+    check(str_contains($admin->request('/admin/events?status=deleted')['body'], 'Integration Cup'), 'administrator can inspect deleted event history');
+    $mailCount = (int) scalar('SELECT COUNT(*) FROM mail_outbox');
+    check($admin->post('/admin/events/' . $eventId . '/delete')['status'] === 303, 'repeated deletion is safe');
+    check((int) scalar('SELECT COUNT(*) FROM mail_outbox') === $mailCount, 'repeated deletion does not duplicate notifications');
     $newAdmin = new Browser($base);
     $oldCsrf = $newAdmin->csrf('/admin/login');
     check($newAdmin->request('/admin/login', ['csrf_token' => $oldCsrf, 'email' => 'admin@campus.example', 'password' => $password])['status'] === 303, 'normal admin password login after activation');

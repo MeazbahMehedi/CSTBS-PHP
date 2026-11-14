@@ -24,6 +24,8 @@ try {
         if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) { throw new RuntimeException('Invalid database name.'); }
         $connection->exec('CREATE DATABASE IF NOT EXISTS `' . $name . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
         db()->exec(file_get_contents(dirname(__DIR__) . '/database/schema.sql'));
+        require_once dirname(__DIR__) . '/src/migrations.php';
+        upgrade_database();
         echo "Database schema installed.\n";
     } elseif (in_array($command, ['admin-setup', 'admin-key', 'admin-reset'], true)) {
         $email = strtolower(trim($argv[2] ?? ''));

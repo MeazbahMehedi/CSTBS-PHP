@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 route('GET', '/', function () {
     if ($user = current_user()) { redirect(role_home($user)); }
-    render('home', ['title' => 'Home', 'events' => all('SELECT * FROM events WHERE starts_at>? ORDER BY starts_at LIMIT 3', [date('Y-m-d H:i:s')])]);
+    render('home', ['title' => 'Home', 'events' => all('SELECT * FROM events WHERE deleted_at IS NULL AND starts_at>? ORDER BY starts_at LIMIT 3', [date('Y-m-d H:i:s')])]);
 });
-route('GET', '/events', function () { render('events', ['title' => 'Events', 'events' => all('SELECT * FROM events ORDER BY starts_at')]); });
+route('GET', '/events', function () { render('events', ['title' => 'Events', 'events' => all('SELECT * FROM events WHERE deleted_at IS NULL ORDER BY starts_at')]); });
 route('GET', '/events/(\d+)', function ($id) { render('event', ['title' => 'Event details', 'event' => event_row((int) $id)]); });
 route('GET', '/events/(\d+)/seats', function ($id) {
     $user = require_user(['student']);
