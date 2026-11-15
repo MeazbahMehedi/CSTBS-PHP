@@ -40,6 +40,10 @@ route('GET', '/tickets/(\d+)/qr.svg', function ($id) {
 route('GET', '/tickets/(\d+)/pdf', function ($id) {
     $ticket = visible_ticket((int) $id);
     $html = '<h1>CSTBS admission pass</h1><h2>' . e($ticket['event_title']) . '</h2><p>' . e($ticket['starts_at'] . ' · ' . $ticket['venue']) . '</p><p>' . e($ticket['attendee_name'] . ' · ' . $ticket['attendee_student_id']) . '</p><p>' . e($ticket['section'] . ' · ' . $ticket['row_label'] . $ticket['number'] . ' · ' . $ticket['gate_name']) . '</p><p>Status ' . e($ticket['status']) . '</p>';
+    if ($ticket['status'] === 'checked_in') {
+        $html .= '<h2>Ticket already used</h2><p>' . e(admission_time($ticket['checked_in_at'])) . '</p><p>'
+            . e($ticket['checked_in_gate_name'] . ' · ' . $ticket['checked_in_by_name']) . '</p>';
+    }
     if ($ticket['status'] === 'active' && $ticket['booking_status'] === 'reserved') {
         $html .= '<img width="220" height="220" src="data:image/svg+xml;base64,' . base64_encode(qr_svg(ticket_token($ticket))) . '">';
     }
@@ -81,6 +85,7 @@ route('POST', '/entry/check-in/([A-Za-z0-9_.-]+)', function ($token) {
     if (!$ticket) { throw new HttpError(404, 'Unknown ticket.'); }
     $gateId = (int) ($_POST['gate_id'] ?? 0);
     check_in((int) $ticket['id'], $gateId, $staff);
+    flash('Entry confirmed. Admission has been recorded.', 'success');
     redirect('/entry/verify/' . $token . '?gate_id=' . $gateId);
 });
 route('POST', '/entry/scan-photo', function () {
@@ -111,10 +116,11 @@ function check_in(int $ticketId, int $gateId, array $staff): void
     $ticket = ticket_row($ticketId);
     transaction(function () use ($ticket, $ticketId, $gateId, $staff) {
         event_row((int) $ticket['event_id'], true);
-        $fresh = ticket_row($ticketId);
+        $fresh = ticket_row($ticketId, true);
         $gate = one('SELECT * FROM gates WHERE id=?', [$gateId]);
         $verdict = admission_verdict($fresh, $gate);
         if ($verdict['status'] !== 'valid') { throw new HttpError(409, $verdict['title']); }
-        query("UPDATE tickets SET status='checked_in',checked_in_at=UTC_TIMESTAMP(),checked_in_by_id=?,checked_in_gate_id=? WHERE id=? AND status='active'", [$staff['id'], $gateId, $ticketId]);
+        $updated = query("UPDATE tickets SET status='checked_in',checked_in_at=UTC_TIMESTAMP(),checked_in_by_id=?,checked_in_gate_id=? WHERE id=? AND status='active'", [$staff['id'], $gateId, $ticketId]);
+        if ($updated->rowCount() !== 1) { throw new HttpError(409, 'Ticket already used.'); }
     });
 }

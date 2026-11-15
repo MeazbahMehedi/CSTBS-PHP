@@ -189,6 +189,14 @@ try {
     check($staff->request('/entry/check-ins?gate_id=' . $gateId)['status'] === 200, 'staff can view gate attendance');
     check($alice->request('/entry/check-ins')['status'] === 403, 'attendance is restricted to staff and administrators');
     check($staff->post('/entry/check-in/' . $token, ['gate_id' => $gateId], '/entry/scan')['status'] === 409, 'duplicate check-in rejected');
+    $usedPage = $staff->request('/entry/verify/' . $token . '?gate_id=' . $gateId)['body'];
+    $record = ticket_row((int) $ticket['id']);
+    check(str_contains($usedPage, 'Ticket already used'), 'used ticket shows an explicit used result');
+    check(str_contains($usedPage, e(admission_time($record['checked_in_at']))), 'used ticket shows local admission time');
+    check(str_contains($usedPage, 'Gate Officer') && str_contains($usedPage, 'Gate 1'), 'used ticket shows admitting person and gate');
+    check(!str_contains($usedPage, '>Confirm entry<'), 'used ticket has no second entry action');
+    check(str_contains($alice->request('/tickets/' . $ticket['id'])['body'], 'Ticket already used'), 'student ticket displays recorded usage');
+
     check($alice->post('/bookings/' . $ticket['booking_id'] . '/cancel')['status'] === 409, 'checked-in ticket cannot be cancelled');
     check($bob->post('/bookings/' . $ticket['booking_id'] . '/cancel')['status'] === 404, 'booking ownership enforced');
     $bobTicket = one('SELECT * FROM tickets WHERE attendee_user_id=?', [$bobUser['id']]);
@@ -242,6 +250,43 @@ try {
     check($photo['status'] === 303, 'uploaded QR photograph is decoded locally');
     unlink($qrPath);
     check($staff->request('/entry/scan?code=' . urlencode($token) . '&gate_id=' . $gateId)['status'] === 303, 'manual signed code routes to verification');
+    query('INSERT INTO events(title,category,description,venue,starts_at,checkin_enabled) VALUES(?,?,?,?,?,1)', ['Concurrent admission', 'Sports', 'Concurrency fixture event.', 'Test Stadium', date('Y-m-d H:i:s', time()+86400)]);
+    $raceEvent = (int) db()->lastInsertId();
+    query("INSERT INTO gates(event_id,name,is_open) VALUES(?,'Race Gate',1)", [$raceEvent]);
+    $raceGate = (int) db()->lastInsertId();
+    query("INSERT INTO seats(event_id,gate_id,section,row_label,number) VALUES(?,?,'Main','A',1)", [$raceEvent,$raceGate]);
+    $raceSeat = (int) db()->lastInsertId();
+    $raceTicket = confirm_booking($raceEvent, [$raceSeat], $aliceUser, [], [])[0];
+    $staffId = (int) scalar("SELECT id FROM users WHERE email='staff@campus.example'");
+    $barrier = dirname(__DIR__) . '/storage/checkin-' . bin2hex(random_bytes(5));
+    $workers = [];
+    try {
+        foreach ([$staffId, $adminId] as $actorId) {
+            $process = proc_open([PHP_BINARY, __DIR__ . '/checkin_worker.php', (string)$raceTicket, (string)$raceGate, (string)$actorId, $barrier], [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']], $workerPipes, dirname(__DIR__));
+            fclose($workerPipes[0]);
+            $workers[] = [$process, $workerPipes];
+        }
+        $deadline = microtime(true)+5;
+        while (count(glob($barrier . '.*.ready')) < 2 && microtime(true)<$deadline) { usleep(1000); }
+        check(count(glob($barrier . '.*.ready')) === 2, 'two independent scanners are ready concurrently');
+        touch($barrier);
+        $outcomes = [];
+        foreach ($workers as [$process,$workerPipes]) {
+            $outcomes[] = trim(stream_get_contents($workerPipes[1]));
+            $error = stream_get_contents($workerPipes[2]);
+            fclose($workerPipes[1]); fclose($workerPipes[2]);
+            check(proc_close($process) === 0, 'scanner worker completes without database failure ' . $error);
+        }
+        $workers = [];
+        sort($outcomes);
+        check($outcomes === ['admitted','rejected'], 'concurrent scanners admit the ticket exactly once');
+        $raceRecord = ticket_row($raceTicket);
+        check($raceRecord['checked_in_at'] && $raceRecord['checked_in_by_name'] && (int)$raceRecord['checked_in_gate_id']===$raceGate, 'concurrent admission retains its winning audit record');
+    } finally {
+        foreach ($workers as [$process,$workerPipes]) { if (is_resource($process)) { proc_terminate($process); proc_close($process); } }
+        foreach (glob($barrier . '.*.ready') as $readyFile) { unlink($readyFile); }
+        if (is_file($barrier)) { unlink($barrier); }
+    }
     $ticketCount = (int) scalar('SELECT COUNT(*) FROM tickets');
     $bookingCount = (int) scalar('SELECT COUNT(*) FROM bookings');
     check($admin->post('/admin/events/' . $eventId . '/delete')['status'] === 303, 'administrator can delete a booked event');

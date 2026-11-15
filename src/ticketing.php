@@ -3,14 +3,17 @@ declare(strict_types=1);
 
 const TICKET_SELECT = 'SELECT t.*,e.title AS event_title,e.starts_at,e.venue,e.checkin_enabled,e.deleted_at,
     s.section,s.row_label,s.number,s.gate_id,g.name AS gate_name,g.is_open,
-    b.status AS booking_status,b.user_id AS owner_id,u.email AS attendee_email
+    b.status AS booking_status,b.user_id AS owner_id,u.email AS attendee_email,
+    officer.full_name AS checked_in_by_name,admitted_gate.name AS checked_in_gate_name
     FROM tickets t JOIN bookings b ON b.id=t.booking_id JOIN seats s ON s.id=b.seat_id
     JOIN events e ON e.id=t.event_id JOIN gates g ON g.id=s.gate_id
-    LEFT JOIN users u ON u.id=t.attendee_user_id ';
+    LEFT JOIN users u ON u.id=t.attendee_user_id
+    LEFT JOIN users officer ON officer.id=t.checked_in_by_id
+    LEFT JOIN gates admitted_gate ON admitted_gate.id=t.checked_in_gate_id ';
 
-function ticket_row(int $id): array
+function ticket_row(int $id, bool $lock = false): array
 {
-    $ticket = one(TICKET_SELECT . ' WHERE t.id=?', [$id]);
+    $ticket = one(TICKET_SELECT . ' WHERE t.id=?' . ($lock ? ' FOR UPDATE' : ''), [$id]);
     if (!$ticket) { throw new HttpError(404, 'Ticket not found.'); }
     return $ticket;
 }
@@ -31,7 +34,7 @@ function admission_verdict(?array $ticket, ?array $gate): array
 {
     $status = 'waiting';
     if (!$ticket) { return ['status' => 'invalid', 'title' => 'INVALID TICKET', 'message' => 'The QR is unknown or altered.']; }
-    if ($ticket['status'] === 'checked_in') { return ['status' => 'invalid', 'title' => 'ALREADY CHECKED IN', 'message' => 'This pass has already been used.']; }
+    if ($ticket['status'] === 'checked_in') { return ['status' => 'used', 'title' => 'Ticket already used', 'message' => 'Review the recorded admission details below.']; }
     if ($ticket['deleted_at']) { return ['status' => 'invalid', 'title' => 'EVENT DELETED', 'message' => 'This event has been removed. Admission is closed.']; }
     if ($ticket['booking_status'] !== 'reserved' || $ticket['status'] === 'cancelled') {
         return ['status' => 'invalid', 'title' => 'CANCELLED TICKET', 'message' => 'This reservation was cancelled.'];

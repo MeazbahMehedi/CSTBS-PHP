@@ -22,6 +22,20 @@
                 <dt>Check-in status</dt>
                 <dd><?= e(str_replace('_', ' ', $ticket['status'])) ?></dd>
             </dl>
+            <?php if ($ticket['status'] === 'checked_in'): ?>
+                <section class="entry-recorded" aria-label="Recorded admission">
+                    <h3>Admission recorded</h3>
+                    <dl class="php-details">
+                        <dt>Entry time</dt>
+                        <dd><time datetime="<?= e($ticket['checked_in_at'] . 'Z') ?>"><?= e(admission_time($ticket['checked_in_at'])) ?></time></dd>
+                        <dt>Entry gate</dt>
+                        <dd><?= e($ticket['checked_in_gate_name'] ?? 'Unavailable') ?></dd>
+                        <dt>Admitted by</dt>
+                        <dd><?= e($ticket['checked_in_by_name'] ?? 'Unavailable') ?></dd>
+                    </dl>
+                </section>
+            <?php endif ?>
+            <?php if ($ticket['status'] === 'active' && !$ticket['deleted_at']): ?>
             <form class="admin-stack-form" method="get" action="<?= e(url('/entry/verify/' . rawurlencode($token))) ?>">
                 <label for="verification-gate">Current physical gate</label>
                 <select class="form-control" id="verification-gate" name="gate_id" required>
@@ -32,6 +46,7 @@
                 </select>
                 <button class="button button-secondary" type="submit">Check selected gate</button>
             </form>
+            <?php endif ?>
             <?php if ($verdict['status'] === 'valid' && $gate): ?>
                 <form class="admin-stack-form" method="post" action="<?= e(url('/entry/check-in/' . rawurlencode($token))) ?>">
                     <?= csrf_field() ?>

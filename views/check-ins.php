@@ -29,7 +29,7 @@
                             <td><strong><?= e($ticket['attendee_name']) ?></strong><small><?= e($ticket['attendee_student_id'] ?? 'Awaiting assignment') ?></small></td>
                             <td><?= e($ticket['event_title'] ?? $ticket['title'] ?? '') ?><small><?= e($ticket['section'] . ' · ' . $ticket['row_label'] . $ticket['number']) ?></small></td>
                             <td><?= e($ticket['checked_in_gate_name'] ?? $ticket['gate_name'] ?? 'Awaiting assignment') ?></td>
-                            <td><span class="history-state <?= $ticket['status'] === 'checked_in' ? 'is-active' : '' ?>"><?= e(ucfirst(str_replace('_', ' ', $ticket['status']))) ?></span><small><?= e($ticket['checked_in_at'] ?? '') ?></small></td>
+                            <td><span class="history-state is-active">Entry recorded</span><small><?= e(admission_time($ticket['checked_in_at'])) ?></small><small>By <?= e($ticket['checked_in_by_name'] ?? 'Unavailable') ?></small></td>
                         </tr>
                     <?php endforeach ?>
                     <?php if (!$tickets): ?>

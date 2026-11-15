@@ -35,10 +35,23 @@
                 <textarea class="form-control" rows="4" readonly aria-label="Signed ticket code"><?= e($token) ?></textarea>
             </details>
         <?php else: ?>
-            <p class="flash flash-info">This pass is <?= e(str_replace('_', ' ', $ticket['status'])) ?>.</p>
+            <p class="flash flash-info"><?= $ticket['status'] === 'checked_in' ? 'Ticket already used' : 'This pass is ' . e(str_replace('_', ' ', $ticket['status'])) . '.' ?></p>
+            <?php if ($ticket['status'] === 'checked_in'): ?>
+                <dl class="php-details entry-recorded">
+                    <dt>Entry time</dt><dd><?= e(admission_time($ticket['checked_in_at'])) ?></dd>
+                    <dt>Entry gate</dt><dd><?= e($ticket['checked_in_gate_name'] ?? 'Unavailable') ?></dd>
+                    <dt>Admitted by</dt><dd><?= e($ticket['checked_in_by_name'] ?? 'Unavailable') ?></dd>
+                </dl>
+            <?php endif ?>
         <?php endif ?>
         <div class="ticket-actions">
-            <button class="button button-secondary" type="button" data-print-ticket>Print ticket</button><a class="button button-secondary" href="<?= e(url('/tickets/' . $ticket['id'] . '/pdf')) ?>">Download PDF</a><a class="button button-secondary" href="<?= e(url('/dashboard')) ?>">My admission passes</a>
+            <button class="button button-secondary" type="button" data-print-ticket>Print ticket</button>
+            <a class="button button-secondary" href="<?= e(url('/tickets/' . $ticket['id'] . '/pdf')) ?>">Download PDF</a>
+            <?php if (current_user()['role'] === 'student'): ?>
+                <a class="button button-secondary" href="<?= e(url('/dashboard')) ?>">My tickets</a>
+            <?php else: ?>
+                <a class="button button-secondary" href="<?= e(url('/admin/bookings')) ?>">Manage bookings</a>
+            <?php endif ?>
         </div>
     </article>
 </section>

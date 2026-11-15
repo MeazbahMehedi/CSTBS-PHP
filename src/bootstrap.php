@@ -56,6 +56,13 @@ function scalar(string $sql, array $params = []): mixed { return query($sql, $pa
 function e(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function url(string $path = '/'): string { return config('base_path') . '/' . ltrim($path, '/'); }
 
+function admission_time(?string $utc): string
+{
+    if (!$utc) { return 'Unavailable'; }
+    $time = new DateTimeImmutable($utc, new DateTimeZone('UTC'));
+    return $time->setTimezone(new DateTimeZone(config('timezone')))->format('d M Y · g:i:s A') . ' (' . config('timezone') . ')';
+}
+
 function csrf_token(): string
 {
     $_SESSION['csrf_token'] ??= bin2hex(random_bytes(32));
