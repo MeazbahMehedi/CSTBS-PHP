@@ -1,9 +1,16 @@
 <?php $user = current_user(); ?>
 <section class="page-heading container animated-enter">
-    <span class="section-kicker">ATTENDEE VERIFICATION</span>
-    <h1>Reserve for <em>your people.</em></h1>
-    <p>Every seat needs a registered student. The first seat is yours.</p>
+    <span class="section-kicker">RESERVATION</span>
+    <h1>Review attendees and seats.</h1>
+    <p>Check the selected seats and enter each attendee’s registered name and Student ID. The first seat is yours.</p>
 </section>
+<nav class="container" aria-label="Reservation progress">
+    <ol class="booking-progress">
+        <li class="is-complete"><span>Select seats</span></li>
+        <li aria-current="step"><span>Attendees &amp; review</span></li>
+        <li><span>Confirmation</span></li>
+    </ol>
+</nav>
 <section class="container confirm-section php-content">
     <article class="confirm-panel glass-panel">
         <h2><?= e($event['title']) ?></h2>

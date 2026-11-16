@@ -1,51 +1,84 @@
-<?php $user = current_user(); ?>
-<section class="page-heading container animated-enter">
-    <span class="section-kicker">CAMPUS STADIUM · STUDENT PORTAL</span>
-    <h1>Welcome, <em><?= e(explode(' ', $user['full_name'])[0]) ?>.</em></h1>
-    <p>Your university matchdays, reservations, and QR admission passes in one place.</p>
-</section>
-<section class="container admin-section php-content">
-    <div class="dashboard-split-cards">
-        <a class="student-action-card" href="<?= e(url('/events')) ?>">
-        <h2>Browse events</h2>
-        <p>Find upcoming stadium activities and reserve your seat.</p>
-        <span class="text-link">Explore events</span></a><a class="student-action-card" href="<?= e(url('/bookings')) ?>">
-        <h2>My bookings</h2>
-        <p>Review reservations, classmate tickets, and cancellations.</p>
-        <span class="text-link">Booking history</span></a><a class="student-action-card" href="<?= e(url('/account')) ?>">
-        <h2>Student profile</h2>
-        <p><?= e($user['student_id'] ?? 'Add your Student ID to book') ?></p>
-        <span class="text-link">Manage your account</span></a>
+<?php
+$user = current_user();
+$upcomingTickets = array_values(array_filter($tickets, fn($ticket) =>
+    $ticket['status'] === 'active'
+    && empty($ticket['deleted_at'])
+    && strtotime($ticket['starts_at']) >= time()
+));
+usort($upcomingTickets, fn($first, $second) => strcmp($first['starts_at'], $second['starts_at']));
+$nextTicket = $upcomingTickets[0] ?? null;
+?>
+<section class="page-heading container student-dashboard-heading">
+    <div>
+        <span class="section-kicker">MY TICKETS</span>
+        <h1>Welcome, <?= e(explode(' ', $user['full_name'])[0]) ?>.</h1>
+        <p>Keep your admission passes ready for your next campus event.</p>
     </div>
-    <div class="admin-panel dashboard-tickets">
+    <a class="button button-primary" href="<?= e(url('/events')) ?>">Browse events</a>
+</section>
+<section class="container php-content student-workspace">
+    <?php if ($nextTicket): ?>
+        <article class="next-ticket-card">
+            <div class="next-ticket-details">
+                <span class="section-kicker">YOUR NEXT EVENT</span>
+                <h2><?= e($nextTicket['event_title'] ?? $nextTicket['title'] ?? '') ?></h2>
+                <p><?= e(date('l, d M Y · g:i A', strtotime($nextTicket['starts_at']))) ?></p>
+                <p><?= e($nextTicket['venue']) ?></p>
+                <dl class="next-ticket-location">
+                    <div><dt>Seat</dt><dd><?= e($nextTicket['section'] . ' · ' . $nextTicket['row_label'] . $nextTicket['number']) ?></dd></div>
+                    <div><dt>Entrance</dt><dd><?= e($nextTicket['gate_name'] ?? 'Awaiting assignment') ?></dd></div>
+                </dl>
+                <a class="button button-primary" href="<?= e(url('/tickets/' . $nextTicket['id'])) ?>">Open admission pass</a>
+            </div>
+            <a class="next-ticket-qr" href="<?= e(url('/tickets/' . $nextTicket['id'])) ?>" aria-label="Open admission pass">
+                <img src="<?= e(url('/tickets/' . $nextTicket['id'] . '/qr.svg')) ?>" width="180" height="180" alt="Your next event QR admission pass">
+                <span>Present at the assigned gate</span>
+            </a>
+        </article>
+    <?php endif ?>
+    <section class="admin-panel dashboard-tickets" aria-labelledby="admission-passes-heading">
         <div class="admin-panel-head">
             <div>
-                <h2>My admission passes</h2>
-                <p>Personal tickets, including passes reserved by a classmate.</p>
+                <h2 id="admission-passes-heading">My admission passes</h2>
+                <p>Includes passes reserved for you by a classmate.</p>
             </div>
+            <a class="text-link" href="<?= e(url('/bookings')) ?>">Booking history</a>
         </div>
         <?php if (!$tickets): ?>
-            <p class="empty-state">Your next stadium experience starts with an event.</p>
+            <div class="empty-state">
+                <h3>No upcoming admission passes</h3>
+                <p>Reserve a seat for an event to receive your personal QR pass.</p>
+                <a class="button button-secondary" href="<?= e(url('/events')) ?>">Find an event</a>
+            </div>
         <?php endif ?>
         <?php foreach ($tickets as $ticket): ?>
-            <div class="student-ticket-row">
+            <article class="student-ticket-row">
                 <div>
                     <h3><?= e($ticket['event_title'] ?? $ticket['title'] ?? '') ?></h3>
-                    <p class="muted"><?= e(date('d M Y · g:i A', strtotime($ticket['starts_at']))) ?> · <?= e($ticket['venue']) ?></p>
+                    <p><?= e(date('d M Y · g:i A', strtotime($ticket['starts_at']))) ?> · <?= e($ticket['venue']) ?></p>
                     <small><?= e($ticket['section'] . ' · ' . $ticket['row_label'] . $ticket['number']) ?> · <?= e($ticket['gate_name'] ?? 'Gate assignment pending') ?></small>
+                    <?php if ($ticket['status'] === 'checked_in' && !empty($ticket['checked_in_at'])): ?>
+                        <small>Used <?= e(admission_time($ticket['checked_in_at'])) ?></small>
+                    <?php endif ?>
                 </div>
                 <div class="ticket-actions">
-                    <span class="history-state is-active"><?= e(str_replace('_', ' ', $ticket['status'])) ?></span><a class="button button-secondary button-small" href="<?= e(url('/tickets/' . $ticket['id'])) ?>">View ticket</a>
+                    <span class="history-state <?= $ticket['status'] === 'active' ? 'is-active' : 'is-used' ?>"><?= $ticket['status'] === 'checked_in' ? 'Used' : 'Ready for entry' ?></span>
+                    <a class="button button-secondary button-small" href="<?= e(url('/tickets/' . $ticket['id'])) ?>">View pass</a>
                 </div>
-            </div>
+            </article>
         <?php endforeach ?>
-    </div>
+    </section>
     <?php if (!empty($events)): ?>
-        <div class="admin-panel">
-            <h2>Upcoming stadium events</h2>
-            <div class="card-grid">
-                <?php foreach ($events as $event) require __DIR__ . '/partials/event-card.php'; ?>
+        <section class="dashboard-event-section" aria-labelledby="upcoming-events-heading">
+            <div class="section-heading">
+                <h2 id="upcoming-events-heading">Upcoming events</h2>
+                <a class="text-link" href="<?= e(url('/events')) ?>">All events</a>
             </div>
-        </div>
+            <div class="card-grid">
+                <?php foreach ($events as $event): ?>
+                    <?php require __DIR__ . '/partials/event-card.php'; ?>
+                <?php endforeach ?>
+            </div>
+        </section>
     <?php endif ?>
 </section>

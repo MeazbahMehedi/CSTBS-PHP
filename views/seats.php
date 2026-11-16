@@ -5,10 +5,17 @@ $sections = [];
 foreach ($seats as $seat) $sections[$seat['section']][$seat['row_label']][] = $seat;
 ?>
 <section class="page-heading container seat-heading">
-    <a class="back-link" href="<?= e(url('/events/' . $event['id'])) ?>">Back to event details</a><span class="section-kicker">CHOOSE YOUR PLACE</span>
-    <h1>Find your <em>perfect seat.</em></h1>
+    <a class="back-link" href="<?= e(url('/events/' . $event['id'])) ?>">Back to event details</a><span class="section-kicker">RESERVATION</span>
+    <h1>Choose your seats.</h1>
     <p><?= e($event['title']) ?> · <?= e(date('d M Y · g:i A', strtotime($event['starts_at']))) ?> · <?= e($event['venue']) ?></p>
 </section>
+<nav class="container" aria-label="Reservation progress">
+    <ol class="booking-progress">
+        <li aria-current="step"><span>Select seats</span></li>
+        <li ><span>Attendees &amp; review</span></li>
+        <li><span>Confirmation</span></li>
+    </ol>
+</nav>
 <section class="container seat-layout php-content">
     <div class="seat-card">
         <div class="seat-card-top">
