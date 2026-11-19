@@ -52,7 +52,15 @@ The command takes a consistent InnoDB snapshot and writes a new SQL file beneath
 
 To restore, create an empty database in phpMyAdmin, then import the SQL backup into that empty database. Update private configuration to use the restored database and retain the original secret. Confirm row counts, users, tickets, and gate assignments before admitting students. The backup restore was verified against an empty MariaDB database during development.
 
-For schema updates, stop application writes and take a backup before applying a reviewed change. Version 1 installation is repeatable with its own schema. Future schema versions require explicit migration work.
+For schema updates, stop application writes and take a backup before applying a reviewed change. Run `php bin/console.php install` with the updated source before reopening the website. It preserves existing tables and applies the repeatable version 2 migration, which adds the nullable event deletion timestamp. Retain the existing private configuration and signing secret.
+
+## Event deletion and admission history
+
+Deleting an event hides it from student discovery and booking, closes every gate, and cancels unused reservations and passes. Bookings with recorded admission and all attendance records remain available to administrators. Cancellation notifications enter the transactional mail queue. The **Deleted events** tab retains the event record for audit. Repeating deletion has no additional effect.
+
+Students can access their own ticket and booking workspace. Administrators manage operations, while gate staff use scanning and attendance pages. Server permissions apply even when a URL is entered manually.
+
+Admission confirmation records the time in UTC together with the gate and admitting user. Pages display that time in the configured campus timezone. Used passes show these details without a second entry action. Event and ticket locks ensure simultaneous scans cannot admit the same ticket twice.
 
 ## Public hosting
 

@@ -18,7 +18,7 @@ The PHP and MariaDB edition of the Campus Stadium Ticket Booking System, designe
 
 Students discover campus events, reserve free seats for themselves and registered classmates, and receive individual signed QR passes. Staff verify university IDs and confirm admission at the assigned gate. Administrators manage events, seating, accounts, gate operations, attendance, and reports.
 
-This edition uses native PHP views, PDO prepared statements, InnoDB transactions, and MariaDB constraints. The interface retains the CSTBS visual identity, responsive layout, themes, and seat-selection interactions.
+This edition uses native PHP views, PDO prepared statements, InnoDB transactions, and MariaDB constraints. Students, administrators, and gate staff have separate workspaces, with a compact responsive interface, light and dark themes, and keyboard-accessible controls. Small transitions respect reduced-motion preferences.
 
 ## Features
 
@@ -28,7 +28,7 @@ This edition uses native PHP views, PDO prepared statements, InnoDB transactions
 | Administration | First administrator provisioning through a local command, expiring single-use activation keys, and explicit password recovery |
 | Reservations | Up to six seats per booking, registered classmate matching, atomic confirmation, and current availability polling |
 | Ticket integrity | Unique active seats, one live ticket per student and event, HMAC-signed tokens, and cancelled-ticket invalidation |
-| Admission | Gate selection, closed/wrong-gate verdicts, staff-only check-in, and duplicate-entry prevention |
+| Admission | Gate selection, closed/wrong-gate verdicts, staff-only confirmation, recorded time/gate/officer, and duplicate-entry prevention |
 | QR tools | Private SVG QR images, PDF admission passes, compatible-browser camera scanning, manual codes, and server-side QR-photo decoding |
 | Stadium controls | Events, sections, seat blocking, gate names and assignments, and individual or event-wide entry controls |
 | Reports | Filtered booking reports, attendance views, private PDF exports, and CSV formula protection |
@@ -99,7 +99,9 @@ Once installed, ordinary use requires starting Apache and MySQL in XAMPP. The PH
 - Each attendee sees their own active passes at `/dashboard`, including tickets arranged by a classmate. The booker can view their reservation history at `/bookings`.
 - Administrators open `/admin`, configure gates and sections, and open entry. Newly created gates start closed.
 - Staff sign in at `/login`, choose a gate at `/entry/scan`, verify a QR and university ID, and confirm entry.
-- Checked-in tickets retain their audit data. Booking history prevents destructive event or section deletion.
+- Student pages are restricted to students. Administrators and gate staff use their own workspaces, with permissions checked on the server.
+- Confirming entry records the campus-local display time, physical gate, and admitting officer. Later scans show **Ticket already used** with these details. Simultaneous attempts admit only once.
+- Administrators can delete events from the calendar. Deletion closes gates, cancels unused reservations and passes, and preserves booking and admission history under **Deleted events**. Sections containing booking history remain protected.
 
 All routes above are relative to the configured base path. Live camera access requires HTTPS or localhost, user permission, and browser decoding support. QR-photo upload provides an additional decoding path.
 
@@ -118,7 +120,7 @@ composer install
 C:\xampp\php\php.exe tests\integration.php
 ```
 
-The test runner creates a uniquely named temporary database and removes that database afterward. Its configured database user needs permission to create and drop test databases. The suite exercises real HTTP requests, independent browser sessions, MariaDB constraints, group-booking rollback, stale booking conflicts, gate admission, QR-photo decoding, reports, and administrator session revocation.
+The test runner creates a uniquely named temporary database and removes that database afterward. Its configured database user needs permission to create and drop test databases. The suite exercises real HTTP requests, independent browser sessions, role isolation, database upgrades, MariaDB constraints, group-booking rollback, stale booking conflicts, simultaneous one-time admission, event deletion with audit preservation, QR-photo decoding, reports, and administrator session revocation.
 
 GitHub Actions runs the suite on PHP 8.2, 8.3, 8.4, and 8.5 with MariaDB 10.11. It also validates Composer, audits locked dependencies, and checks PHP and JavaScript syntax.
 
@@ -152,4 +154,4 @@ This PHP edition creates a separate MariaDB database. Importing an existing Flas
 
 Released under the [MIT License](LICENSE).
 
-The initial commit history uses maintainer-requested author dates from 20 October to 20 November 2026. Committer timestamps record the actual creation of those commits.
+The commit history uses author and committer dates assigned at the maintainer’s request from 20 October to 20 November 2026. These dates organize the history and do not represent when the work was performed. This PHP edition and the current improvements were prepared on 20 November 2026.
