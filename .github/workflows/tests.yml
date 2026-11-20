@@ -42,5 +42,6 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check public/assets/js/main.js
+          node --check public/assets/js/motion.js
           node --check public/assets/js/seats.js
           node --check public/assets/js/scanner.js

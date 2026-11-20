@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 600" fill="none">
+<defs>
+<linearGradient id="bowl" x2="0" y2="1"><stop stop-color="#526b81"/><stop offset="1" stop-color="#152a40"/></linearGradient>
+<linearGradient id="grass" x2="1" y2="1"><stop stop-color="#42c59e"/><stop offset="1" stop-color="#11695f"/></linearGradient>
+<radialGradient id="halo"><stop stop-color="#52bfb3" stop-opacity=".35"/><stop offset="1" stop-color="#52bfb3" stop-opacity="0"/></radialGradient>
+<linearGradient id="beam" x2="0" y2="1"><stop stop-color="#fff4ce" stop-opacity=".3"/><stop offset="1" stop-color="#fff4ce" stop-opacity="0"/></linearGradient>
+</defs>
+<ellipse cx="370" cy="390" rx="350" ry="185" fill="url(#halo)"/>
+<path d="M75 345Q360 130 645 345V402Q360 610 75 402Z" fill="#091b2a" stroke="#35556b" stroke-width="2"/>
+<path d="M75 345Q360 130 645 345Q360 560 75 345Z" fill="url(#bowl)" stroke="#9cabb6"/>
+<path d="M103 345Q360 158 617 345Q360 531 103 345Z" stroke="#dcb875" stroke-width="4" stroke-dasharray="2 10"/>
+<path d="M116 350Q360 180 604 350Q360 520 116 350Z" stroke="#b0c7d2" stroke-width="4" stroke-dasharray="2 9"/>
+<path d="M132 357Q360 203 588 357Q360 510 132 357Z" stroke="#8fa7ba" stroke-width="5" stroke-dasharray="2 9"/>
+<path d="M148 365Q360 223 572 365Q360 501 148 365Z" stroke="#dcb875" stroke-width="4" stroke-dasharray="2 9"/>
+<path d="M161 372Q360 247 559 372Q360 497 161 372Z" fill="#0c2336" stroke="#8197a6"/>
+<path d="M184 373 360 289 536 373 360 458Z" fill="url(#grass)" stroke="#b9eddc" stroke-width="2"/>
+<path d="m219 356 176 85m-140-102 176 85m-141-102 176 85m-141-102 176 85" stroke="#c1f5d5" stroke-opacity=".08" stroke-width="18"/>
+<path d="m199 373 161-77 161 77-161 77Z M279 335l161 77 M223 361l30 14-30 14m274-28-30 14 30 14" stroke="#e0f8e9" stroke-opacity=".8"/>
+<ellipse cx="360" cy="373" rx="42" ry="20" stroke="#e0f8e9" stroke-opacity=".8"/>
+<path d="M112 321V168m496 153V168M219 267V131m282 136V131" stroke="#7897ac" stroke-width="5"/>
+<path d="m87 172 50-10m57-27 50-8m232 0 50 8m57 27 50 10" stroke="#fff0bd" stroke-width="9" stroke-linecap="round"/>
+<path d="m90 177 47-9 135 200-235-4Zm106-38 47-8 197 219-254 20Zm280-8 47 8 11 231-254-20Zm107 37 47 9 98 187-235 4Z" fill="url(#beam)"/>
+<g fill="#c3d5e3" opacity=".55"><circle cx="327" cy="121" r="1.5"/><circle cx="388" cy="78" r="1"/><circle cx="558" cy="101" r="1.5"/><circle cx="147" cy="76" r="1"/><circle cx="440" cy="166" r="1"/></g>
+</svg>

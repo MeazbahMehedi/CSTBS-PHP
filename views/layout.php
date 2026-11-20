@@ -39,10 +39,12 @@ $workspace = match ($role) {
     <title><?= e($title ?? 'CSTBS') ?> | Campus Stadium</title>
     <link rel="stylesheet" href="<?= e(url('/public/assets/css/styles.css')) ?>">
     <link rel="stylesheet" href="<?= e(url('/public/assets/css/php.css')) ?>">
+    <link rel="stylesheet" href="<?= e(url('/public/assets/css/premium.css')) ?>">
     <script src="<?= e(url('/public/assets/js/main.js')) ?>" defer></script>
+    <script src="<?= e(url('/public/assets/js/motion.js')) ?>" defer></script>
     <script src="<?= e(url('/public/assets/js/seats.js')) ?>" defer></script>
 </head>
-<body data-role="<?= e($role) ?>">
+<body data-role="<?= e($role) ?>" data-page="<?= $currentPath === '/' ? 'home' : 'workspace' ?>">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
         <nav class="container nav" aria-label="Primary navigation">
