@@ -39,6 +39,8 @@ jobs:
         run: find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: MariaDB and HTTP integration
         run: php tests/integration.php
+      - name: Local installer integration
+        run: php tests/setup.php
       - name: JavaScript syntax
         run: |
           node --check public/assets/js/main.js

@@ -20,7 +20,7 @@ date_default_timezone_set($config['timezone']);
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
-    throw new HttpError(503, 'Application dependencies are missing. Complete the Composer installation in the CSTBS-PHP folder, then reload this page.');
+    throw new HttpError(503, 'Application dependencies are missing. On Windows, double-click Setup-CSTBS.cmd in the CSTBS-PHP folder to complete the Composer installation automatically, then reload this page.');
 }
 require $autoload;
 
@@ -201,7 +201,7 @@ function verify_password(string $password, string $hash): bool
 }
 
 if (PHP_SAPI !== 'cli') {
-    if (strlen((string) config('secret')) < 32) { throw new HttpError(503, 'Installation is incomplete. Run the CSTBS command-line installer to configure the private signing secret and database.'); }
+    if (strlen((string) config('secret')) < 32) { throw new HttpError(503, 'Installation is incomplete. On Windows, double-click Setup-CSTBS.cmd in the project folder to configure the private signing secret and database.'); }
     if (config('production') && config('mail_transport') !== 'smtp') {
         throw new RuntimeException('Configure SMTP before production startup.');
     }

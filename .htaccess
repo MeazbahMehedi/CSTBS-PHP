@@ -1,6 +1,7 @@
 Options -Indexes
 <IfModule mod_rewrite.c>
 RewriteEngine On
+RewriteRule ^Setup-CSTBS\.cmd$ - [F,L]
 RewriteRule ^(?:src|views|database|bin|tests|storage|vendor|\.github)(?:/|$) - [F,L]
 RewriteRule ^(?:config.*\.php|composer\.(?:json|lock)|\.git.*)$ - [F,L]
 RewriteRule ^public/assets/ - [L]

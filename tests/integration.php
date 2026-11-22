@@ -113,6 +113,9 @@ try {
     check($public->request('/')['status'] === 200, 'public homepage');
     check(in_array($public->request('/config.local.php')['status'], [403, 404], true), 'private configuration is inaccessible');
     check(in_array($public->request('/database/schema.sql')['status'], [403, 404], true), 'schema source is inaccessible');
+    foreach (['/Setup-CSTBS.cmd', '/bin/setup.ps1', '/bin/setup.php'] as $setupPath) {
+        check(in_array($public->request($setupPath)['status'], [403, 404], true), 'local installer is inaccessible over HTTP ' . $setupPath);
+    }
     check($public->request('/admin')['status'] === 303, 'anonymous administration requires login');
     check($public->request('/register', [])['status'] === 400, 'missing CSRF rejected');
     $password = 'IntegrationPassword123!';
