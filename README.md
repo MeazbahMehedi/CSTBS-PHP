@@ -1,6 +1,6 @@
 <div align="center">
 
-# CSTBS PHP
+# CSTBS-PHP
 
 **Campus events, assigned seats, and verified stadium admission.**
 
