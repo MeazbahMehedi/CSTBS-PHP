@@ -51,10 +51,26 @@ Screenshots show the running PHP application with fictional local demonstration 
 ### Requirements
 
 - XAMPP with Apache, PHP 8.2 or newer, and MariaDB 10.4 or newer.
-- Composer 2 and Git, or a downloaded source archive.
+- Git or a downloaded source archive. The Windows setup tool downloads Composer locally. Manual installation requires Composer 2.
 - PHP extensions `pdo_mysql`, `mbstring`, `gd`, `dom`, `xml`, `fileinfo`, and `zip`. Enable GD and ZIP in `C:\xampp\php\php.ini` if necessary, then restart Apache.
 
-### Set up the application
+### Quick setup on Windows
+
+1. Install XAMPP with PHP 8.2 or newer. Start **Apache** and **MySQL**.
+2. Clone or extract this repository into `C:\xampp\htdocs\CSTBS-PHP`.
+3. Open that folder in File Explorer and double-click **`Setup-CSTBS.cmd`**.
+4. Follow the prompts for database settings and your first administrator. Fresh XAMPP normally uses host `127.0.0.1`, port `3306`, user `root`, and an empty database password.
+5. Open **http://localhost/CSTBS-PHP/**. Set your administrator password at `/admin/activate` using the single-use key shown during setup.
+
+**You do not need to install Composer globally or type installation commands.** The setup tool finds XAMPP PHP, checks required extensions, offers to enable installed missing extensions with a PHP configuration backup, downloads the official Composer installer over HTTPS, verifies its SHA-384 checksum, and installs the versions in `composer.lock`. Internet access is required for dependency downloads. Restart Apache if setup enabled extensions.
+
+Each laptop needs this initial setup once. Afterward, start Apache and MySQL in XAMPP to use the application. Following a source update, run setup again to install changed dependencies and apply schema upgrades. Existing private settings, signing secrets, administrators, passwords, and records are preserved. Existing databases are backed up to private `storage/backups` before schema changes. Sample events are optional and are added only when the calendar is empty.
+
+If configuration already exists, setup keeps it. If MySQL uses different credentials, review `config.local.php` and rerun setup. Setup does not reset an administrator password. A pending administrator can receive another activation key through the recovery command in the operations guide.
+
+The launcher changes PowerShell's execution policy only for its own process. It does not change the machine policy or start a web-based installer. Managed computers may require their administrator to permit local scripts. The installer and its PHP helper cannot be accessed through the website.
+
+### Manual setup (optional)
 
 1. Start **Apache** and **MySQL** in XAMPP Control Panel. The MySQL button starts XAMPP's MariaDB service.
 2. Open PowerShell and run the following commands.
@@ -118,6 +134,7 @@ Use HTTPS, persistent private secrets, SMTP, a restricted database user, private
 ```powershell
 composer install
 C:\xampp\php\php.exe tests\integration.php
+C:\xampp\php\php.exe tests\setup.php
 ```
 
 The test runner creates a uniquely named temporary database and removes that database afterward. Its configured database user needs permission to create and drop test databases. The suite exercises real HTTP requests, independent browser sessions, role isolation, database upgrades, MariaDB constraints, group-booking rollback, stale booking conflicts, simultaneous one-time admission, event deletion with audit preservation, QR-photo decoding, reports, and administrator session revocation.

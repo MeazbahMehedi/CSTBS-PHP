@@ -8,6 +8,20 @@ Generate a secret with `php -r "echo bin2hex(random_bytes(32));"`. Preserve it a
 
 Run commands from the repository directory using XAMPP's PHP executable or add that executable to your terminal PATH.
 
+## Windows setup and updates
+
+Double-click `Setup-CSTBS.cmd` after cloning to a new laptop. Start Apache and MySQL first. No global Composer command is needed. The launcher uses Windows PowerShell 5.1, detects XAMPP PHP relative to the checkout or at `C:\xampp\php\php.exe`, and can ask for a custom executable path. Its process-scoped policy does not modify the computer's execution policy.
+
+For an existing installation, rerun setup after updates. It preserves `config.local.php`, generates a signing secret only when absent or empty, backs up an existing application database, installs locked dependencies, and runs the repeatable schema installer. An existing nonempty short secret is flagged for operator review instead of being replaced. Existing administrators are never reset, and fictional accounts are not created. The sample-event prompt is optional.
+
+Composer is stored privately in `storage/tools/composer.phar`. The initial download follows the [official Composer verification process](https://getcomposer.org/download/) and checks the installer's current SHA-384 checksum before execution. Failed verification stops installation. Downloads require working internet access and PHP HTTPS certificate settings. The installer keeps TLS verification enabled.
+
+If PHP extensions are missing, setup can uncomment their installed extension entries in the loaded `php.ini`, saving a timestamped backup first. If they still fail to load, the original configuration is restored. Restart Apache after a successful change. No XAMPP service is started or stopped automatically.
+
+Private database passwords are entered with masked input and passed to the PHP helper through standard input, never command arguments. Do not record the setup window when it displays the administrator activation key. Setup refuses database or signing-secret environment overrides to avoid writing configuration for an unexpected database.
+
+For operator diagnostics, `powershell -NoProfile -File bin/setup.ps1 -CheckOnly -PhpPath C:\xampp\php\php.exe` checks PHP and extensions without installing anything. Automated operators may use `-NonInteractive` only with an existing private configuration. That mode skips sample events and first-administrator provisioning.
+
 ## Administrator recovery
 
 ```powershell
