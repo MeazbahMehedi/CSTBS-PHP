@@ -1,0 +1,48 @@
+name: Notify profile of project activity
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notify-profile-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Notify profile
+        uses: actions/github-script@v8
+        env:
+          PROFILE_REFRESH_TOKEN: ${{ secrets.PROFILE_REFRESH_TOKEN }}
+        with:
+          script: |
+            if (!process.env.PROFILE_REFRESH_TOKEN) {
+              core.warning('Set PROFILE_REFRESH_TOKEN in this repository to enable push-triggered profile refreshes.');
+              return;
+            }
+            const {data: repo} = await github.rest.repos.get(context.repo);
+            const client_payload = {};
+            const approved = ['scholarsend', 'KeyFlow'];
+            if (repo.private && approved.includes(repo.name)) {
+              const {data: commits} = await github.rest.repos.listCommits({...context.repo, per_page: 1});
+              client_payload.project = {
+                name: repo.name,
+                description: (repo.description || 'Project in development.').slice(0,180),
+                last_commit_at: commits[0].commit.committer.date
+              };
+            }
+            const profile = new github.constructor({auth: process.env.PROFILE_REFRESH_TOKEN});
+            await profile.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.owner,
+              event_type: 'project-activity',
+              client_payload
+            });
+            core.info('Profile refresh requested.');
